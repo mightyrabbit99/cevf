@@ -7,10 +7,9 @@
 #ifndef CEVF_MAIN_H
 #define CEVF_MAIN_H
 
+#include <cevf.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <cevf.h>
-
 
 struct cevf_producer_s *_cevf_pd_arr = NULL;
 cevf_asz_t _cevf_pd_arr_sz = 0;
