@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <stdio.h>
+#include <signal.h>
 
 #include "cevf_ev.h"
 #include "cvector.h"
@@ -191,14 +192,6 @@ void cevf_qmsg_del_mq(cevf_mq_t mt) {
 }
 
 /////////////////////////
-static CEVF_EV_THENDDECL(cevf_eloop_f, arg1) {
-  eloop_terminate();
-}
-
-static CEVF_EV_THFDECL(cevf_eloop_f, arg1) {
-  eloop_run();
-  eloop_destroy();
-}
 
 static eloop_event_type conv_sockevent_eloope(cevf_sockevent_t typ) {
   switch (typ) {
@@ -211,7 +204,9 @@ static eloop_event_type conv_sockevent_eloope(cevf_sockevent_t typ) {
   }
 }
 
+static uint8_t cevf_register_sock_cnt = 0;
 int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handler, void *arg1, void *arg2) {
+  cevf_register_sock_cnt = 1;
   return eloop_register_sock(sock, conv_sockevent_eloope(typ), handler, arg1, arg2);
 }
 
@@ -219,7 +214,28 @@ void cevf_unregister_sock(int sock, cevf_sockevent_t typ) {
   return eloop_unregister_sock(sock, conv_sockevent_eloope(typ));
 }
 
+int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data) {
+  signal(SIGINT, handler);
+  signal(SIGTERM, handler);
+  return 0;
+}
+
 /////////////////////////
+
+static struct qmsg2_s *ctrl_mq;
+static char *ctrl_string = "controller_string";
+static void cevf_mainloop(void) {
+  for (;;) {
+    void *msg = ctrl_string;
+    //qmsg2_poll(ctrl_mq, &msg, 0, 100000000);
+    qmsg2_deq(ctrl_mq, &msg);
+    if (msg == NULL) break;
+  }
+}
+
+static CEVF_EV_THFDECL(cevf_mainloop_f, arg1) {
+  cevf_mainloop();
+}
 
 static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt, hashmap *m_evtyp_handler) {
   struct thpillar_s pillars[] = {
@@ -255,27 +271,30 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
       .context = pd_arr[i].context,
     };
   }
-  props[props_len++] = (struct thprop_s){
-    .thstart = CEVF_EV_THFNAME(cevf_eloop_f),
-    .stack_size = CEVF_CONSUMER_STACKSIZE,
-    .thtyp = thtyp_producer,
-    .evtyp = -1, // not being used
-    .terminator = CEVF_EV_THENDNAME(cevf_eloop_f),
-    .context = NULL,
-  };
+  if (cevf_register_sock_cnt > 0) {
+    props[props_len++] = (struct thprop_s){
+      .thstart = CEVF_EV_THFNAME(cevf_mainloop_f),
+      .stack_size = CEVF_CONSUMER_STACKSIZE,
+      .thtyp = thtyp_producer,
+      .evtyp = -1, // not being used
+      .terminator = NULL,
+      .context = NULL,
+    };
+  }
+
   ev_init(pillars, sizeof(pillars) / sizeof(struct thpillar_s));
   return ev_run(props, props_len);
 }
 
 static void cevf_run_initialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
   for (uint8_t i = 0; i < ini_num; i++) {
-    ini_arr[i].init_f();
+    if (ini_arr[i].init_f) ini_arr[i].init_f();
   }
 }
 
 static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
   for (uint8_t i = 0; i < ini_num; i++) {
-    ini_arr[i].deinit_f();
+    if (ini_arr[i].deinit_f) ini_arr[i].deinit_f();
   }
 }
 
@@ -290,8 +309,6 @@ int cevf_init(void) {
   return 0;
 }
 
-static struct qmsg2_s *ctrl_mq;
-static char *ctrl_string = "controller_string";
 int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
@@ -304,15 +321,14 @@ int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_pr
 
   cevf_run_initialisers(ini_arr, ini_num);
   struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
-  for (;;) {
-    void *msg = ctrl_string;
-    //qmsg2_poll(ctrl_mq, &msg, 0, 100000000);
-    qmsg2_deq(ctrl_mq, &msg);
-    if (msg == NULL) break;
-  }
+  if (cevf_register_sock_cnt > 0)
+    eloop_run();
+  else
+    cevf_mainloop();
   ev_join(thstat);
   ev_deinit();
   cevf_run_deinitialisers(ini_arr, ini_num);
+  eloop_destroy();
 
 fail:
   qmsg2_del_mq(ctrl_mq);
@@ -321,6 +337,7 @@ fail:
 }
 
 void cevf_terminate(void) {
+  eloop_terminate();
   qmsg2_enq(ctrl_mq, NULL);
 }
 

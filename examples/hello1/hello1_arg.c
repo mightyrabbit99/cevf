@@ -1,4 +1,4 @@
-#include "argum.h"
+#include "hello1_arg.h"
 
 #include <string.h>
 #include <stdio.h>

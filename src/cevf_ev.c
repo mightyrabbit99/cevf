@@ -145,6 +145,10 @@ static int destroy_th(struct thinfo_s *thinfo) {
   int s;
   if (thinfo == NULL) return 0;
   s = pthread_join(thinfo->thread_id, &res);
+  if (s != 0) {
+    fprintf(stderr, "pthread_join failed!\n");
+    return s;
+  }
   free(res);
   pthread_mutex_destroy(&thinfo->term_mut);
   delete_thinfo_s(thinfo);

@@ -21,6 +21,8 @@ typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
 typedef void (*cevf_initfunc_t)(void);
 typedef void (*cevf_sock_handler_t)(int sock, void *arg1, void *arg2);
+typedef void (*cevf_timeout_handler_t)(void *eloop_ctx, void *user_ctx);
+typedef void (*cevf_signal_handler)(int sig);
 
 #define CEVF_EV_PASTER(x, y) x ## _ ## y
 #define CEVF_EV_CONCAT(x, y) CEVF_EV_PASTER(x,y)
@@ -68,6 +70,7 @@ int cevf_qmsg_poll(cevf_mq_t mt, void *buf, int timeout);
 void cevf_qmsg_del_mq(cevf_mq_t mt);
 int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handler, void *arg1, void *arg2);
 void cevf_unregister_sock(int sock, cevf_sockevent_t typ);
+int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data);
 void cevf_terminate(void);
 void cevf_deinit(void);
 
