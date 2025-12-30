@@ -267,6 +267,18 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
   return ev_run(props, props_len);
 }
 
+static void cevf_run_initialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
+  for (uint8_t i = 0; i < ini_num; i++) {
+    ini_arr[i].init_f();
+  }
+}
+
+static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
+  for (uint8_t i = 0; i < ini_num; i++) {
+    ini_arr[i].deinit_f();
+  }
+}
+
 int cevf_init(void) {
   qmsg2_init();
   data_mq = qmsg2_new_mq(CEVF_DATA_MQ_SZ);
@@ -280,7 +292,7 @@ int cevf_init(void) {
 
 static struct qmsg2_s *ctrl_mq;
 static char *ctrl_string = "controller_string";
-int cevf_run(struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
+int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
 
@@ -290,8 +302,8 @@ int cevf_run(struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consume
     goto fail;
   }
 
+  cevf_run_initialisers(ini_arr, ini_num);
   struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
-  cevf_generic_enqueue(NULL, 0, CEVF_RESERVED_EV_START);
   for (;;) {
     void *msg = ctrl_string;
     //qmsg2_poll(ctrl_mq, &msg, 0, 100000000);
@@ -300,6 +312,7 @@ int cevf_run(struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consume
   }
   ev_join(thstat);
   ev_deinit();
+  cevf_run_deinitialisers(ini_arr, ini_num);
 
 fail:
   qmsg2_del_mq(ctrl_mq);
@@ -308,7 +321,6 @@ fail:
 }
 
 void cevf_terminate(void) {
-  cevf_generic_enqueue(NULL, 0, CEVF_RESERVED_EV_END);
   qmsg2_enq(ctrl_mq, NULL);
 }
 

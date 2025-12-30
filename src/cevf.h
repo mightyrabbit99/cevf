@@ -19,6 +19,7 @@ typedef enum {
 
 typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
+typedef void (*cevf_initfunc_t)(void);
 typedef void (*cevf_sock_handler_t)(int sock, void *arg1, void *arg2);
 
 #define CEVF_EV_PASTER(x, y) x ## _ ## y
@@ -38,6 +39,11 @@ typedef void *cevf_mq_t;
 typedef uint8_t cevf_producer_id_t;
 typedef int (*cevf_consumer_handler_t)(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 
+struct cevf_initialiser_s {
+  cevf_initfunc_t init_f;
+  cevf_initfunc_t deinit_f;
+};
+
 struct cevf_producer_s {
   cevf_thfunc_t thstart;
   ssize_t stack_size;
@@ -54,7 +60,7 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd);
 int cevf_rm_producer(cevf_producer_id_t id);
 int cevf_generic_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 int cevf_init(void);
-int cevf_run(struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt);
+int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);
 int cevf_qmsg_deq(cevf_mq_t mt, void **buf);
@@ -64,8 +70,8 @@ int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handl
 void cevf_unregister_sock(int sock, cevf_sockevent_t typ);
 void cevf_terminate(void);
 void cevf_deinit(void);
-#define CEVF_RESERVED_EV_START 0
-#define CEVF_RESERVED_EV_END 1
+
+#define CEVF_MON_INTERVAL 1
 #define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t)-1)
 #define CEVF_THFDECL(fname, argname) CEVF_EV_THFDECL(fname, argname)
 #define CEVF_THFNAME(fname) CEVF_EV_THFNAME(fname)
