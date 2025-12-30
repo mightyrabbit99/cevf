@@ -308,6 +308,7 @@ fail:
 }
 
 void cevf_terminate(void) {
+  cevf_generic_enqueue(NULL, 0, CEVF_RESERVED_EV_END);
   qmsg2_enq(ctrl_mq, NULL);
 }
 

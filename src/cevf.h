@@ -65,6 +65,7 @@ void cevf_unregister_sock(int sock, cevf_sockevent_t typ);
 void cevf_terminate(void);
 void cevf_deinit(void);
 #define CEVF_RESERVED_EV_START 0
+#define CEVF_RESERVED_EV_END 1
 #define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t)-1)
 #define CEVF_THFDECL(fname, argname) CEVF_EV_THFDECL(fname, argname)
 #define CEVF_THFNAME(fname) CEVF_EV_THFNAME(fname)
