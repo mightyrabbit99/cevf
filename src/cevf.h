@@ -29,7 +29,10 @@ typedef void (*cevf_sock_handler_t)(int sock, void *arg1, void *arg2);
 #define CEVF_EV_THENDNAME(fname) CEVF_EV_CONCAT(fname, terminate)
 #define CEVF_EV_THENDDECL(fname, argname) void CEVF_EV_THENDNAME(fname)(void *argname)
 
-typedef uint8_t cevf_evtyp_t;
+#ifndef CEVF_EV_DTYP
+#define CEVF_EV_DTYP uint8_t
+#endif // CEVF_EV_DTYP
+typedef CEVF_EV_DTYP cevf_evtyp_t;
 typedef uint8_t cevf_asz_t;
 typedef void *cevf_mq_t;
 typedef uint8_t cevf_producer_id_t;
@@ -62,7 +65,7 @@ void cevf_unregister_sock(int sock, cevf_sockevent_t typ);
 void cevf_terminate(void);
 void cevf_deinit(void);
 #define CEVF_RESERVED_EV_START 0
-#define CEVF_RESERVED_EV_THEND UINT8_MAX
+#define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t)-1)
 #define CEVF_THFDECL(fname, argname) CEVF_EV_THFDECL(fname, argname)
 #define CEVF_THFNAME(fname) CEVF_EV_THFNAME(fname)
 #define CEVF_THENDDECL(fname, argname) CEVF_EV_THENDDECL(fname, argname)

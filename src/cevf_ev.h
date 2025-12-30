@@ -21,8 +21,12 @@ typedef void (*cevf_thendf_t)(void *context);
 #define CEVF_EV_THENDNAME(fname) CEVF_EV_CONCAT(fname, terminate)
 #define CEVF_EV_THENDDECL(fname, argname) void CEVF_EV_THENDNAME(fname)(void *argname)
 
+#ifndef CEVF_EV_DTYP
+#define CEVF_EV_DTYP uint8_t
+#endif // CEVF_EV_DTYP
+
 typedef uint8_t thtyp_t;
-typedef uint8_t evtyp_t;
+typedef CEVF_EV_DTYP evtyp_t;
 typedef uint8_t ev_th_id_t;
 typedef int (*evhandler_t)(uint8_t *data, size_t datalen, evtyp_t evtyp, void *context);
 
