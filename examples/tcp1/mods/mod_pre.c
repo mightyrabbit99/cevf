@@ -6,6 +6,12 @@
 
 #define console_log(...) printf(__VA_ARGS__)
 
+static void fd_close_handle(int fd) {
+  if (fd < 0) return;
+  cevf_unregister_sock(fd, CEVF_SOCKEVENT_TYPE_READ);
+  close(fd);
+}
+
 static void hij_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   struct srvread_s *h = (struct srvread_s *)sock_ctx;
   char readbuf[SRVREAD_READBUF_SIZE];
@@ -30,11 +36,8 @@ end:
 }
 
 static struct srvread_s *hij_server_read_create(int sd, void (*cb)(struct srvread_s *handle, void *cookie, enum srvread_event e), void *cookie) {
-  struct srvread_s *ans = zalloc(sizeof(struct srvread_s));
+  struct srvread_s *ans = new_srvread_s(sd, cb, cookie);
   if (ans == NULL) return NULL;
-  ans->sd = sd;
-  ans->cb = cb;
-  ans->cookie = cookie;
   if (cevf_register_sock(sd, CEVF_SOCKEVENT_TYPE_READ, hij_server_read_handler, NULL, ans)) goto fail;
   return ans;
 fail:
@@ -44,19 +47,23 @@ fail:
 
 static void hij_server_read_cb(struct srvread_s *handle, void *cookie, enum srvread_event e) {
   struct srv_conn_ctx_s *srvconn = cookie;
-  if (e == SRVREAD_EVENT_CLOSE) delete_srv_conn_ctx_s(srvconn);
+  if (e == SRVREAD_EVENT_CLOSE) {
+    cevf_unregister_sock(srvconn->fd, CEVF_SOCKEVENT_TYPE_READ);
+    delete_srv_conn_ctx_s(srvconn);
+  }
 }
 
 static struct srv_conn_ctx_s *hij_server_sndrcv_init(struct srv_ctx_s *srv, int fd, struct sockaddr_in *addr) {
-  struct srv_conn_ctx_s *srvconn = zalloc(sizeof(struct srv_conn_ctx_s));
-  srvconn->srv = srv;
-  srvconn->fd = fd;
+  struct srv_conn_ctx_s *srvconn = new_src_conn_ctx_s(srv, fd);
+  if (srvconn == NULL) goto fail;
   srvconn->hread = hij_server_read_create(srvconn->fd, hij_server_read_cb, srvconn);
-  if (srvconn->hread == NULL) {
-    delete_srv_conn_ctx_s(srvconn);
-    return NULL;
-  }
+  if (srvconn->hread == NULL) goto fail;
+
+  link_srv_srvconn(srv, srvconn);
   return srvconn;
+fail:
+  delete_srv_conn_ctx_s(srvconn);
+  return NULL;
 }
 
 static void hij_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) {
@@ -72,15 +79,8 @@ static void hij_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   }
   printf("HTTP: Connection from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
-  struct srv_conn_ctx_s *req = hij_server_sndrcv_init(srv, conn, &addr);
-  if (req == NULL) {
+  if (hij_server_sndrcv_init(srv, conn, &addr) == NULL)
     close(conn);
-    return;
-  }
-
-  req->next = srv->conns;
-  srv->conns = req;
-  srv->request_count++;
 }
 
 static struct srv_ctx_s *register_hij_server(int port) {
@@ -106,7 +106,7 @@ static struct srv_ctx_s *register_hij_server(int port) {
 
   return srv;
 fail:
-  delete_srv_ctx_s(srv);
+  delete_srv_ctx_s(srv, fd_close_handle);
   return NULL;
 }
 
@@ -117,7 +117,7 @@ static void root_init_1(void) {
 }
 
 static void root_deinit_1(void) {
-  delete_srv_ctx_s(srv);
+  delete_srv_ctx_s(srv, fd_close_handle);
 }
 
 static void mod_pre_init(void) {

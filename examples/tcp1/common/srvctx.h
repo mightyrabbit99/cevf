@@ -12,8 +12,6 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
-#include "cevf.h"
-
 #define SRVREAD_READBUF_SIZE 100
 
 inline static void *zalloc(size_t sz) {
@@ -33,11 +31,21 @@ struct srvread_s {
 		    enum srvread_event e);
 };
 
+inline static struct srvread_s *new_srvread_s(int sd, void (*cb)(struct srvread_s *handle, void *cookie, enum srvread_event e), void *cookie) {
+  struct srvread_s *ans = (struct srvread_s *)zalloc(sizeof(struct srvread_s));
+  if (ans == NULL) return NULL;
+  ans->sd = sd;
+  ans->cb = cb;
+  ans->cookie = cookie;
+  return ans;
+}
+
 inline static void destroy_srvread_s(struct srvread_s *h) {
-  cevf_unregister_sock(h->sd, CEVF_SOCKEVENT_TYPE_READ);
+  if (h == NULL) return;
 }
 
 inline static void delete_srvread_s(struct srvread_s *h) {
+  if (h == NULL) return;
   destroy_srvread_s(h);
   free(h);
 }
@@ -55,12 +63,22 @@ struct srv_conn_ctx_s {
   struct srv_conn_ctx_s *next;
 };
 
+inline static struct srv_conn_ctx_s *new_src_conn_ctx_s(struct srv_ctx_s *srv, int fd) {
+  struct srv_conn_ctx_s *ans = (struct srv_conn_ctx_s *)zalloc(sizeof(struct srv_conn_ctx_s));
+  if (ans == NULL) return NULL;
+  ans->srv = srv;
+  ans->fd = fd;
+  return ans;
+}
+
 inline static void destroy_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
+  if (srvconn == NULL) return;
   delete_srvread_s(srvconn->hread);
   close(srvconn->fd);
 }
 
 inline static void delete_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
+  if (srvconn == NULL) return;
   destroy_srv_conn_ctx_s(srvconn);
   struct srv_ctx_s *srv = srvconn->srv;
   struct srv_conn_ctx_s *r = srv->conns, *r2 = NULL;
@@ -79,6 +97,12 @@ inline static void delete_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
   free(srvconn);
 }
 
+inline static void link_srv_srvconn(struct srv_ctx_s *srv, struct srv_conn_ctx_s *srvconn) {
+  srvconn->next = srv->conns;
+  srv->conns = srvconn;
+  srv->request_count++;
+}
+
 inline static void srv_conn_free_all(struct srv_conn_ctx_s *head) {
   struct srv_conn_ctx_s *prev;
   while (head) {
@@ -88,17 +112,14 @@ inline static void srv_conn_free_all(struct srv_conn_ctx_s *head) {
   }
 }
 
-inline static void destroy_srv_ctx_s(struct srv_ctx_s *srv) {
+inline static void destroy_srv_ctx_s(struct srv_ctx_s *srv, typeof(void(int)) fd_close_handle) {
   if (srv == NULL) return;
-	if (srv->fd >= 0) {
-    cevf_unregister_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ);
-    close(srv->fd);
-  }
+  fd_close_handle(srv->fd);
   srv_conn_free_all(srv->conns);
 }
 
-inline static void delete_srv_ctx_s(struct srv_ctx_s *srv) {
-  destroy_srv_ctx_s(srv);
+inline static void delete_srv_ctx_s(struct srv_ctx_s *srv, typeof(void(int)) fd_close_handle) {
+  destroy_srv_ctx_s(srv, fd_close_handle);
   free(srv);
 }
 

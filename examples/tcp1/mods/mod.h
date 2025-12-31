@@ -1,6 +1,7 @@
 #ifndef MOD_H
 #define MOD_H
 #include "cevf_mod.h"
+#include <stdlib.h>
 #include <string.h>
 
 enum _evtyp {
