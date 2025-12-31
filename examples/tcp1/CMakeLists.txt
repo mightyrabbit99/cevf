@@ -3,6 +3,7 @@ target_sources(tcp1
   PRIVATE
     tcp1.c
     mods/mod_pre.c
+    mods/mod_srvp.c
 )
 target_link_libraries(tcp1
   PUBLIC

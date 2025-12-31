@@ -16,10 +16,9 @@ static void hij_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   } else if (nread == 0) {
     goto end;
   } else {
-    if (nread >= 5 && memcmp(readbuf, "hello", 5) == 0)
-      write(h->sd, "world\n", 6);
-    else
-      write(h->sd, "fuck you\n", 9);
+    struct sock_toreply_s *rpy = new_sock_toreply_s(readbuf, nread, h->sd);
+    if (rpy == NULL) return;
+    cevf_generic_enqueue((void *)rpy, sizeof(struct sock_toreply_s), evt_a1_toreply);
   }
   return;
 
