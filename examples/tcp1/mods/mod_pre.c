@@ -21,6 +21,7 @@ static void hij_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
     else
       write(h->sd, "fuck you\n", 9);
   }
+  return;
 
 bad:
   (*h->cb)(h, h->cookie, SRVREAD_EVENT_ERROR);
