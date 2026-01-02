@@ -3,8 +3,9 @@
 
 #define console_log(...) printf(__VA_ARGS__)
 
-static void a1_init_1(void) {
+static int a1_init_1(void) {
   console_log("Hello World!\n");
+  return 0;
 }
 
 static void a1_deinit_1(void) {

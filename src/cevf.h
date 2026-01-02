@@ -19,7 +19,8 @@ typedef enum {
 
 typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
-typedef void (*cevf_initfunc_t)(void);
+typedef int (*cevf_initfunc_t)(void);
+typedef void (*cevf_deinitfunc_t)(void);
 typedef void (*cevf_sock_handler_t)(int sock, void *arg1, void *arg2);
 typedef void (*cevf_timeout_handler_t)(void *eloop_ctx, void *user_ctx);
 typedef void (*cevf_signal_handler)(int sig);
@@ -43,7 +44,7 @@ typedef int (*cevf_consumer_handler_t)(uint8_t *data, size_t datalen, cevf_evtyp
 
 struct cevf_initialiser_s {
   cevf_initfunc_t init_f;
-  cevf_initfunc_t deinit_f;
+  cevf_deinitfunc_t deinit_f;
 };
 
 struct cevf_producer_s {

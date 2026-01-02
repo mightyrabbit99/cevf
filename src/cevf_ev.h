@@ -48,6 +48,7 @@ struct tharg_s {
   evhandler_t handler; // handler(data, datalen, evtyp, context)
   evtyp_t evtyp;
   void *context;
+  int ret;
 };
 
 struct thstat_s;
@@ -60,6 +61,7 @@ struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len);
 int ev_join(struct thstat_s *thstat);
 #define ev_handle2(argname, data, datalen, evtyp) ((struct tharg_s *)argname)->handler(data, datalen, evtyp, ((struct tharg_s *)argname)->context)
 #define ev_handle(argname, data, datalen) ev_handle2(argname, data, datalen, ((struct tharg_s *)argname)->evtyp)
+#define ev_setret(argname, _ret) (((struct tharg_s *)argname)->ret = _ret)
 #define ev_gethandl(argname) (((struct tharg_s *)argname)->handler)
 #define ev_asserthandlrf(argname, f) assert(ev_gethandl(argname) == f)
 

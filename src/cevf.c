@@ -110,17 +110,18 @@ static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) {
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   ev_asserthandlrf(arg1, cevf_handle_event_1);
+  int ret = 0;
   uint8_t *data;
   ssize_t datalen;
   cevf_evtyp_t evtyp;
   for (;;) {
     datalen = cevf_generic_dequeue(&data, &evtyp);
     if (-1 == datalen) return NULL;
-    if (evtyp == CEVF_RESERVED_EV_THEND) {
-      return NULL;
-    }
-    ev_handle2(arg1, data, datalen, evtyp);
+    if (evtyp == CEVF_RESERVED_EV_THEND) break;
+    if (ret = ev_handle2(arg1, data, datalen, evtyp)) break;
   }
+  ev_setret(arg1, ret);
+  return NULL;
 }
 
 static hashmap *compile_m_evtyp_handler(struct cevf_consumer_s *cm_arr, uint8_t cm_num) {
@@ -286,10 +287,13 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
   return ev_run(props, props_len);
 }
 
-static void cevf_run_initialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
+static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
+  int res = 0;
   for (uint8_t i = 0; i < ini_num; i++) {
-    if (ini_arr[i].init_f) ini_arr[i].init_f();
+    if (ini_arr[i].init_f == NULL) continue;
+    if (res = ini_arr[i].init_f()) return res;
   }
+  return res;
 }
 
 static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
@@ -310,6 +314,7 @@ int cevf_init(void) {
 }
 
 int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
+  int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
 
@@ -319,7 +324,7 @@ int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_pr
     goto fail;
   }
 
-  cevf_run_initialisers(ini_arr, ini_num);
+  if (ret = cevf_run_initialisers(ini_arr, ini_num)) goto fail;
   struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
   if (cevf_register_sock_cnt > 0)
     eloop_run();
@@ -333,7 +338,7 @@ int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_pr
 fail:
   qmsg2_del_mq(ctrl_mq);
   delete_m_evtyp_handler(m_evtyp_handler);
-  return 0;
+  return ret;
 }
 
 void cevf_terminate(void) {
