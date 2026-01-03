@@ -108,7 +108,7 @@ inline static void srv_conn_free_all(struct srv_conn_ctx_s *head) {
   while (head) {
     prev = head;
     head = head->next;
-    destroy_srv_conn_ctx_s(prev);
+    delete_srv_conn_ctx_s(prev);
   }
 }
 
