@@ -124,10 +124,10 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   return NULL;
 }
 
-static hashmap *compile_m_evtyp_handler(struct cevf_consumer_s *cm_arr, uint8_t cm_num) {
+static hashmap *compile_m_evtyp_handler(struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num) {
   hashmap *m_evtyp_handler = hashmap_create();
   if (m_evtyp_handler == NULL) return NULL;
-  uint8_t i;
+  cevf_asz_t i;
   cvector_vector_type(cevf_consumer_handler_t) handler_arr = NULL;
   for (i = 0; i < cm_num; i++) {
     if (!hashmap_get(m_evtyp_handler, &cm_arr[i].evtyp, sizeof(cm_arr[i].evtyp), (uintptr_t *)&handler_arr)) {
@@ -238,7 +238,7 @@ static CEVF_EV_THFDECL(cevf_mainloop_f, arg1) {
   cevf_mainloop();
 }
 
-static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt, hashmap *m_evtyp_handler) {
+static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt, hashmap *m_evtyp_handler) {
   struct thpillar_s pillars[] = {
     {
       .thtyp = thtyp_producer,
@@ -251,8 +251,8 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
   };
 
   struct thprop_s props[pd_num + cm_thr_cnt + 1];
-  uint8_t props_len = 0;
-  for (uint8_t i = 0; i < cm_thr_cnt; i++) {
+  cevf_asz_t props_len = 0;
+  for (cevf_asz_t i = 0; i < cm_thr_cnt; i++) {
     props[props_len++] = (struct thprop_s){
       .thstart = CEVF_EV_THFNAME(cevf_generic_consumer_loopf),
       .stack_size = CEVF_CONSUMER_STACKSIZE,
@@ -262,7 +262,7 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
       .context = (void *)m_evtyp_handler,
     };
   }
-  for (uint8_t i = 0; i < pd_num; i++) {
+  for (cevf_asz_t i = 0; i < pd_num; i++) {
     props[props_len++] = (struct thprop_s){
       .thstart = pd_arr[i].thstart,
       .stack_size = pd_arr[i].stack_size,
@@ -287,7 +287,7 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
   return ev_run(props, props_len);
 }
 
-static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX]) {
+static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
   int res = 0;
   for (uint8_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
     if (ini_num[i] == 0) continue;
@@ -300,7 +300,7 @@ static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRI
   return res;
 }
 
-static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX]) {
+static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
   for (uint8_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
     if (ini_num[CEVF_INI_PRIO_MAX - i - 1] == 0) continue;
     if (ini_arr[CEVF_INI_PRIO_MAX - i - 1] == NULL) continue;
@@ -321,7 +321,7 @@ int cevf_init(void) {
   return 0;
 }
 
-int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
+int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
   int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;

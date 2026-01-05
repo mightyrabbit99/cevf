@@ -8,6 +8,7 @@
 #define CEVF_MOD_H
 
 #include <cevf.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 extern struct cevf_initialiser_s *_cevf_ini_arr[CEVF_INI_PRIO_MAX];
@@ -47,7 +48,10 @@ static int _cevf_ret = 0;
 #define cevf_mod_add_initialiser(prio, init_f, deinit_f) \
   do {                                                   \
     _cevf_mod_add_initialiser(prio, init_f, deinit_f);   \
-    if (_cevf_ret == -1) return;                         \
+    if (_cevf_ret == -1) {                               \
+      fprintf(stderr, "cevf initialisation error\n");    \
+      exit(1);                                           \
+    }                                                    \
   } while (0)
 #define _cevf_mod_add_producer(_thname, _stack_size)                                                                          \
   do {                                                                                                                        \
@@ -72,7 +76,10 @@ static int _cevf_ret = 0;
 #define cevf_mod_add_producer(_thname, _stack_size) \
   do {                                              \
     _cevf_mod_add_producer(_thname, _stack_size);   \
-    if (_cevf_ret == -1) return;                    \
+    if (_cevf_ret == -1) {                          \
+      fprintf(stderr, "cevf producer error\n");     \
+      exit(1);                                      \
+    }                                               \
   } while (0)
 #define _cevf_mod_add_consumer(_ev_typ, _handler)                                                                             \
   do {                                                                                                                        \
@@ -95,7 +102,10 @@ static int _cevf_ret = 0;
 #define cevf_mod_add_consumer(_ev_typ, _handler) \
   do {                                           \
     _cevf_mod_add_consumer(_ev_typ, _handler);   \
-    if (_cevf_ret == -1) return;                 \
+    if (_cevf_ret == -1) {                       \
+      fprintf(stderr, "cevf consumer error\n");  \
+      exit(1);                                   \
+    }                                            \
   } while (0)
 #define cevf_mod_init(function) \
   static void __attribute__((constructor)) cevf_mod_init_##function(void) { function(); }

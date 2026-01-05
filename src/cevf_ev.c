@@ -196,7 +196,7 @@ static void *ev_generic_thread_f(void *arg) {
   return res;
 }
 
-void ev_init(struct thpillar_s pillars[], uint8_t pillars_len) {
+void ev_init(struct thpillar_s pillars[], size_t pillars_len) {
   th_ids = ids_new_idsys();
   m_thtyp_handler = compile_m_thtyp_handler(pillars, pillars_len);
 }
