@@ -287,12 +287,14 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t p
   return ev_run(props, props_len);
 }
 
+static uint32_t i_ini, j_ini;
+
 static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
   int res = 0;
-  for (uint8_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
+  for (uint32_t i = 0; i < CEVF_INI_PRIO_MAX; i_ini = i++) {
     if (ini_num[i] == 0) continue;
     if (ini_arr[i] == NULL) continue;
-    for (uint8_t j = 0; j < ini_num[i]; j++) {
+    for (uint32_t j = 0; j < ini_num[i]; j_ini = j++) {
       if (ini_arr[i][j].init_f == NULL) continue;
       if (res = ini_arr[i][j].init_f()) return res;
     }
@@ -301,11 +303,12 @@ static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRI
 }
 
 static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
-  for (uint8_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
-    if (ini_num[CEVF_INI_PRIO_MAX - i - 1] == 0) continue;
-    if (ini_arr[CEVF_INI_PRIO_MAX - i - 1] == NULL) continue;
-    for (uint8_t j = 0; j < ini_num[CEVF_INI_PRIO_MAX - i - 1]; j++) {
-      if (ini_arr[CEVF_INI_PRIO_MAX - i - 1][j].deinit_f) ini_arr[CEVF_INI_PRIO_MAX - i - 1][j].deinit_f();
+  for (uint32_t i = 0; i <= i_ini; i++) {
+    if (ini_num[i_ini - i] == 0) continue;
+    if (ini_arr[i_ini - i] == NULL) continue;
+    for (uint32_t j = 0; j < ini_num[i_ini - i]; j++) {
+      if (i == 0 && j > j_ini) break;
+      if (ini_arr[i_ini - i][j].deinit_f) ini_arr[i_ini - i][j].deinit_f();
     }
   }
 }
@@ -332,7 +335,7 @@ int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t i
     goto fail;
   }
 
-  if (ret = cevf_run_initialisers(ini_arr, ini_num)) goto fail;
+  if (ret = cevf_run_initialisers(ini_arr, ini_num)) goto fail2;
   struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
   if (cevf_register_sock_cnt > 0)
     eloop_run();
@@ -340,10 +343,10 @@ int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t i
     cevf_mainloop();
   ev_join(thstat);
   ev_deinit();
+fail2:
   cevf_run_deinitialisers(ini_arr, ini_num);
-  eloop_destroy();
-
 fail:
+  eloop_destroy();
   qmsg2_del_mq(ctrl_mq);
   delete_m_evtyp_handler(m_evtyp_handler);
   return ret;
