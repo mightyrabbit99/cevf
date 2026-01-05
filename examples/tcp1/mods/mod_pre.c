@@ -123,7 +123,7 @@ static void root_deinit_1(void) {
 }
 
 static void mod_pre_init(void) {
-  cevf_mod_add_initialiser(root_init_1, root_deinit_1);
+  cevf_mod_add_initialiser(0, root_init_1, root_deinit_1);
 }
 
 cevf_mod_init(mod_pre_init)

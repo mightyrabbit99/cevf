@@ -287,18 +287,26 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, uint8_t pd_n
   return ev_run(props, props_len);
 }
 
-static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
+static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX]) {
   int res = 0;
-  for (uint8_t i = 0; i < ini_num; i++) {
-    if (ini_arr[i].init_f == NULL) continue;
-    if (res = ini_arr[i].init_f()) return res;
+  for (uint8_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
+    if (ini_num[i] == 0) continue;
+    if (ini_arr[i] == NULL) continue;
+    for (uint8_t j = 0; j < ini_num[i]; j++) {
+      if (ini_arr[i][j].init_f == NULL) continue;
+      if (res = ini_arr[i][j].init_f()) return res;
+    }
   }
   return res;
 }
 
-static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr, uint8_t ini_num) {
-  for (uint8_t i = 0; i < ini_num; i++) {
-    if (ini_arr[i].deinit_f) ini_arr[i].deinit_f();
+static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX]) {
+  for (uint8_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
+    if (ini_num[CEVF_INI_PRIO_MAX - i - 1] == 0) continue;
+    if (ini_arr[CEVF_INI_PRIO_MAX - i - 1] == NULL) continue;
+    for (uint8_t j = 0; j < ini_num[CEVF_INI_PRIO_MAX - i - 1]; j++) {
+      if (ini_arr[CEVF_INI_PRIO_MAX - i - 1][j].deinit_f) ini_arr[CEVF_INI_PRIO_MAX - i - 1][j].deinit_f();
+    }
   }
 }
 
@@ -313,7 +321,7 @@ int cevf_init(void) {
   return 0;
 }
 
-int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
+int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, uint8_t pd_num, struct cevf_consumer_s *cm_arr, uint8_t cm_num, uint8_t cm_thr_cnt) {
   int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;

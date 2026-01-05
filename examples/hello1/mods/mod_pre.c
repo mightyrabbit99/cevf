@@ -13,7 +13,7 @@ static void a1_deinit_1(void) {
 }
 
 static void mod_pre_init(void) {
-  cevf_mod_add_initialiser(a1_init_1, a1_deinit_1);
+  cevf_mod_add_initialiser(0, a1_init_1, a1_deinit_1);
 }
 
 cevf_mod_init(mod_pre_init)

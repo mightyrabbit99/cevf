@@ -59,11 +59,13 @@ struct cevf_consumer_s {
   cevf_consumer_handler_t handler;
 };
 
+#define CEVF_INI_PRIO_MAX 100
+
 cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd);
 int cevf_rm_producer(cevf_producer_id_t id);
 int cevf_generic_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 int cevf_init(void);
-int cevf_run(struct cevf_initialiser_s *ini_arr, uint8_t ini_num, struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt);
+int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], uint8_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);
 int cevf_qmsg_deq(cevf_mq_t mt, void **buf);
