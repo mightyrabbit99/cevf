@@ -12,7 +12,8 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
-#define SRVREAD_READBUF_SIZE 100
+#define SRV_READBUF_SIZE 100
+#define SRV_WRITEBUF_SIZE 100
 
 inline static void *zalloc(size_t sz) {
   return calloc(1, sz);
@@ -65,21 +66,23 @@ struct srv_conn_ctx_s {
 
 inline static struct srv_conn_ctx_s *new_src_conn_ctx_s(struct srv_ctx_s *srv, int fd) {
   struct srv_conn_ctx_s *ans = (struct srv_conn_ctx_s *)zalloc(sizeof(struct srv_conn_ctx_s));
-  if (ans == NULL) return NULL;
+  if (ans == NULL) goto fail;
   ans->srv = srv;
   ans->fd = fd;
   return ans;
+fail:
+  free(ans);
+  return NULL;
 }
 
 inline static void destroy_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
   if (srvconn == NULL) return;
-  delete_srvread_s(srvconn->hread);
-  close(srvconn->fd);
 }
 
-inline static void delete_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
+inline static void destruct_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
   if (srvconn == NULL) return;
-  destroy_srv_conn_ctx_s(srvconn);
+  close(srvconn->fd);
+  delete_srvread_s(srvconn->hread);
   struct srv_ctx_s *srv = srvconn->srv;
   struct srv_conn_ctx_s *r = srv->conns, *r2 = NULL;
   while (r) {
@@ -94,7 +97,23 @@ inline static void delete_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
     r2 = r;
     r = r->next;
   }
+  destroy_srv_conn_ctx_s(srvconn);
+}
+
+inline static void delete_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
+  if (srvconn == NULL) return;
+  destroy_srv_conn_ctx_s(srvconn);
   free(srvconn);
+}
+
+inline static void erase_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
+  if (srvconn == NULL) return;
+  destruct_srv_conn_ctx_s(srvconn);
+  free(srvconn);
+}
+
+inline static void link_srvconn_rw(struct srv_conn_ctx_s *srvconn, struct srvread_s *hread) {
+  srvconn->hread = hread;
 }
 
 inline static void link_srv_srvconn(struct srv_ctx_s *srv, struct srv_conn_ctx_s *srvconn) {
@@ -108,19 +127,33 @@ inline static void srv_conn_free_all(struct srv_conn_ctx_s *head) {
   while (head) {
     prev = head;
     head = head->next;
-    delete_srv_conn_ctx_s(prev);
+    erase_srv_conn_ctx_s(prev);
   }
 }
 
-inline static void destroy_srv_ctx_s(struct srv_ctx_s *srv, typeof(void(int)) fd_close_handle) {
+inline static void destroy_srv_ctx_s(struct srv_ctx_s *srv) {
+  if (srv == NULL) return;
+}
+
+inline static void destruct_srv_ctx_s(struct srv_ctx_s *srv, typeof(void(int)) fd_close_handle) {
   if (srv == NULL) return;
   fd_close_handle(srv->fd);
   srv_conn_free_all(srv->conns);
 }
 
-inline static void delete_srv_ctx_s(struct srv_ctx_s *srv, typeof(void(int)) fd_close_handle) {
-  destroy_srv_ctx_s(srv, fd_close_handle);
+inline static void erase_srv_ctx_s(struct srv_ctx_s *srv, typeof(void(int)) fd_close_handle) {
+  destruct_srv_ctx_s(srv, fd_close_handle);
   free(srv);
+}
+
+inline static void delete_srv_ctx_s(struct srv_ctx_s *srv) {
+  destroy_srv_ctx_s(srv);
+  free(srv);
+}
+
+inline static struct srv_ctx_s *new_srv_ctx_s(void) {
+  struct srv_ctx_s *srv = (void *)zalloc(sizeof(struct srv_ctx_s));
+  return srv;
 }
 
 #endif // SRVCTX_H
