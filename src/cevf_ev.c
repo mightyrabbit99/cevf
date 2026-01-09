@@ -36,6 +36,8 @@
 #include "map.h"
 #include "ids.h"
 
+#define lge(...) fprintf(stderr, __VA_ARGS__)
+
 struct thinfo_s {
   cevf_thfunc_t thstart;
   pthread_t thread_id;
@@ -108,13 +110,13 @@ static struct thinfo_s *create_th(struct thprop_s pd) {
   thinfo->thstart = pd.thstart;
   s = pthread_mutex_init(&thinfo->term_mut, NULL);
   if (s != 0) {
-    fprintf(stderr, "pthread_mutex failed!\n");
+    lge("pthread_mutex failed!\n");
     goto fail;
   }
   thinfo->dynamic_id = (ev_th_id_t)-1;
   s = pthread_create(&thinfo->thread_id, &attr, ev_generic_thread_f, (void *)thinfo);
   if (s != 0) {
-    fprintf(stderr, "pthread_create failed!\n");
+    lge("pthread_create failed!\n");
     goto fail;
   }
 
@@ -146,7 +148,7 @@ static int destroy_th(struct thinfo_s *thinfo) {
   if (thinfo == NULL) return 0;
   s = pthread_join(thinfo->thread_id, &res);
   if (s != 0) {
-    fprintf(stderr, "pthread_join failed!\n");
+    lge("pthread_join failed!\n");
     return s;
   }
   free(res);

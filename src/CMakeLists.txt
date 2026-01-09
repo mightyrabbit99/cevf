@@ -1,5 +1,6 @@
 add_library(cevf STATIC)
 add_compile_definitions(CONFIG_ELOOP_EPOLL)
+add_compile_definitions(__HASHMAP_REMOVABLE)
 target_sources(cevf
   PRIVATE
     cevf.c
