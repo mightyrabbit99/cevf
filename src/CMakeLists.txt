@@ -6,6 +6,7 @@ target_sources(cevf
     cevf_ev.c
     utils/qmsg2.c
     utils/timespec.c
+    utils/heap.c
     utils/map.c
     utils/ids.c
     utils/eloop/os.c

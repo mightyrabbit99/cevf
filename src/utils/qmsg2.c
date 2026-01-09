@@ -126,14 +126,14 @@ int qmsg2_enq_soft(struct qmsg2_s *mq, void *item) {
 	return 0;
 }
 
-int qmsg2_deq(struct qmsg2_s *mq, void **buf) {
+qmsg2_res_t qmsg2_deq(struct qmsg2_s *mq, void **buf) {
   if (sem_wait(&mq->full)) {
     perror("sem_wait");
-    return -1;
+    return qmsg2_res_error;
   }
 	if (pthread_mutex_lock(&mq->mutex)) {
     perror("pthread_mutex_lock");
-    return -1;
+    return qmsg2_res_error;
   }
 
 	*buf = mq->buffer[mq->removes];
@@ -142,47 +142,52 @@ int qmsg2_deq(struct qmsg2_s *mq, void **buf) {
 
 	if (pthread_mutex_unlock(&mq->mutex)) {
     perror("pthread_mutex_unlock");
-    return -1;
+    return qmsg2_res_error;
   }
 	if (sem_post(&mq->empty)) {
     perror("sem_post");
-    return -1;
+    return qmsg2_res_error;
   }
 
-	return 0;
+	return qmsg2_res_ok;
 }
 
-int qmsg2_poll(struct qmsg2_s *mq, void **buf, time_t tv_sec, long tv_nsec) {
+qmsg2_res_t qmsg2_poll2(struct qmsg2_s *mq, void **buf, struct timespec tm) {
+  if (sem_timedwait(&mq->full, &tm)) {
+    if (errno == ETIMEDOUT) return qmsg2_res_timeout;
+    if (errno == EINTR) return qmsg2_res_interrupt;
+    perror("sem_timedwait");
+    return qmsg2_res_error;
+  }
+	if (pthread_mutex_lock(&mq->mutex)) {
+    perror("pthread_mutex_lock");
+    return qmsg2_res_error;
+  }
+
+	*buf = mq->buffer[mq->removes];
+	mq->buffer[mq->removes++] = NULL;
+	mq->removes = mq->removes % mq->bufsz;
+
+	if (pthread_mutex_unlock(&mq->mutex)) {
+    perror("pthread_mutex_unlock");
+    return qmsg2_res_error;
+  }
+	if (sem_post(&mq->empty)) {
+    perror("sem_post");
+    return qmsg2_res_error;
+  }
+
+	return qmsg2_res_ok;
+}
+
+qmsg2_res_t qmsg2_poll(struct qmsg2_s *mq, void **buf, time_t tv_sec, long tv_nsec) {
   struct timespec tm;
   if (clock_gettime(CLOCK_REALTIME, &tm) == -1) {
     perror("clock_gettime");
     return -1;
   }
   tm = timespec_add(tm, (struct timespec){ .tv_sec = tv_sec, .tv_nsec = tv_nsec });
-  if (sem_timedwait(&mq->full, &tm)) {
-    if (errno == ETIMEDOUT) return 0;
-    perror("sem_timedwait");
-    return -1;
-  }
-	if (pthread_mutex_lock(&mq->mutex)) {
-    perror("pthread_mutex_lock");
-    return -1;
-  }
-
-	*buf = mq->buffer[mq->removes];
-	mq->buffer[mq->removes++] = NULL;
-	mq->removes = mq->removes % mq->bufsz;
-
-	if (pthread_mutex_unlock(&mq->mutex)) {
-    perror("pthread_mutex_unlock");
-    return -1;
-  }
-	if (sem_post(&mq->empty)) {
-    perror("sem_post");
-    return -1;
-  }
-
-	return 0;
+  return qmsg2_poll2(mq, buf, tm);
 }
 
 int qmsg2_flush(struct qmsg2_s *mq, typeof(void(void *)) destroyer) {

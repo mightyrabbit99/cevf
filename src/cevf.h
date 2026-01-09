@@ -16,13 +16,12 @@ typedef enum {
 	CEVF_SOCKEVENT_TYPE_EXCEPTION
 } cevf_sockevent_t;
 
-
 typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
 typedef int (*cevf_initfunc_t)(void);
 typedef void (*cevf_deinitfunc_t)(void);
 typedef void (*cevf_sock_handler_t)(int sock, void *arg1, void *arg2);
-typedef void (*cevf_timeout_handler_t)(void *eloop_ctx, void *user_ctx);
+typedef void (*cevf_timeout_handler_t)(void *ctx);
 typedef void (*cevf_signal_handler)(int sig);
 
 #define CEVF_EV_PASTER(x, y) x ## _ ## y
@@ -74,6 +73,10 @@ void cevf_qmsg_del_mq(cevf_mq_t mt);
 int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handler, void *arg1, void *arg2);
 void cevf_unregister_sock(int sock, cevf_sockevent_t typ);
 int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data);
+int cevf_register_timeout(time_t tv_sec, long tv_nsec, cevf_timeout_handler_t handler, void *ctx);
+// int cevf_cancel_timeout(cevf_timeout_handler_t handler, void *ctx);
+// int cevf_cancel_timeout_one(cevf_timeout_handler_t handler, void *ctx, struct timespec *remaining);
+// int cevf_is_timeout_registered(cevf_timeout_handler_t handler, void *ctx);
 void cevf_terminate(void);
 void cevf_deinit(void);
 

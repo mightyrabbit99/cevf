@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <signal.h>
-#include <stdlib.h>
-
 #include "cevf_main.h"
 
 #define CM_THR_CNT 2

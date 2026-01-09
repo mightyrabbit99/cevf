@@ -34,6 +34,8 @@ typedef enum {
 	EVENT_TYPE_EXCEPTION
 } eloop_event_type;
 
+struct os_reltime;
+
 /**
  * eloop_sock_handler - eloop socket event callback type
  * @sock: File descriptor number for the socket

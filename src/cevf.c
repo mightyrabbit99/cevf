@@ -29,26 +29,30 @@
 
 #include "cevf.h"
 
-#include <sys/msg.h>
-#include <errno.h>
-#include <string.h>
-#include <stdlib.h>
 #include <assert.h>
-#include <stdio.h>
+#include <errno.h>
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/msg.h>
 
 #include "cevf_ev.h"
 #include "cvector.h"
 #include "cvector_utils.h"
+#include "eloop/eloop.h"
+#include "heap.h"
 #include "map.h"
 #include "qmsg2.h"
-#include "eloop/os.h"
-#include "eloop/eloop.h"
+#include "timespec.h"
 
 /////////////////////////////////////
 #define CEVF_CONSUMER_STACKSIZE 0
-#define CEVF_DATA_MQ_SZ 10
 #define CEVF_CTRL_MQ_SZ 2
+
+// TODO
+#define CEVF_DATA_MQ_SZ 10
+#define CEVF_TIMEOUT_HP_SZ 10
 
 static struct qmsg2_s *data_mq;
 
@@ -83,9 +87,7 @@ static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp) {
   return datalen;
 }
 
-static int cevf_generic_enqueue_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) {
-  return cevf_generic_enqueue(data, datalen, evtyp);
-}
+static int cevf_generic_enqueue_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) { return cevf_generic_enqueue(data, datalen, evtyp); }
 
 static int cevf_handle_event_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) {
   hashmap *m_evtyp_handler = (hashmap *)context;
@@ -98,15 +100,12 @@ static int cevf_handle_event_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp
   int res = 0;
   cevf_consumer_handler_t *f;
   cvector_for_each_in(f, handler_arr) {
-    if (res = (*f)(data, datalen, evtyp) < 0)
-      break;
+    if (res = (*f)(data, datalen, evtyp) < 0) break;
   }
   return res;
 }
 
-static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) {
-  cevf_generic_enqueue(NULL, 0, CEVF_RESERVED_EV_THEND);
-}
+static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { cevf_generic_enqueue(NULL, 0, CEVF_RESERVED_EV_THEND); }
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   ev_asserthandlrf(arg1, cevf_handle_event_1);
@@ -157,51 +156,41 @@ enum thtype_e {
 
 cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
   return (cevf_producer_id_t)ev_add_th((struct thprop_s){
-    .thstart = pd.thstart,
-    .stack_size = pd.stack_size,
-    .thtyp = thtyp_producer,
-    .evtyp = -1, // not being used
-    .terminator = pd.terminator,
-    .context = pd.context,
+      .thstart = pd.thstart,
+      .stack_size = pd.stack_size,
+      .thtyp = thtyp_producer,
+      .evtyp = -1,  // not being used
+      .terminator = pd.terminator,
+      .context = pd.context,
   });
 }
 
-int cevf_rm_producer(cevf_producer_id_t id) {
-  return ev_rm_th((ev_th_id_t)id);
-}
+int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
 
 /////////////////////////
-cevf_mq_t cevf_qmsg_new_mq(size_t sz) {
-  return (cevf_mq_t)qmsg2_new_mq(sz);
-}
+cevf_mq_t cevf_qmsg_new_mq(size_t sz) { return (cevf_mq_t)qmsg2_new_mq(sz); }
 
 int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
   if (mt == NULL) return -1;
   return qmsg2_enq((struct qmsg2_s *)mt, item);
 }
 
-int cevf_qmsg_deq(cevf_mq_t mt, void **buf) {
-  return qmsg2_deq((struct qmsg2_s *)mt, buf);
-}
+int cevf_qmsg_deq(cevf_mq_t mt, void **buf) { return qmsg2_deq((struct qmsg2_s *)mt, buf); }
 
-int cevf_qmsg_poll(cevf_mq_t mt, void *buf, int timeout) {
-  return qmsg2_poll((struct qmsg2_s *)mt, buf, timeout, 0);
-}
+int cevf_qmsg_poll(cevf_mq_t mt, void *buf, int timeout) { return qmsg2_poll((struct qmsg2_s *)mt, buf, timeout, 0); }
 
-void cevf_qmsg_del_mq(cevf_mq_t mt) {
-  qmsg2_del_mq((struct qmsg2_s *)mt);
-}
+void cevf_qmsg_del_mq(cevf_mq_t mt) { qmsg2_del_mq((struct qmsg2_s *)mt); }
 
 /////////////////////////
 
 static eloop_event_type conv_sockevent_eloope(cevf_sockevent_t typ) {
   switch (typ) {
     case CEVF_SOCKEVENT_TYPE_READ:
-    return EVENT_TYPE_READ;
+      return EVENT_TYPE_READ;
     case CEVF_SOCKEVENT_TYPE_WRITE:
-    return EVENT_TYPE_WRITE;
+      return EVENT_TYPE_WRITE;
     case CEVF_SOCKEVENT_TYPE_EXCEPTION:
-    return EVENT_TYPE_EXCEPTION;
+      return EVENT_TYPE_EXCEPTION;
   }
 }
 
@@ -211,11 +200,11 @@ int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handl
   return eloop_register_sock(sock, conv_sockevent_eloope(typ), handler, arg1, arg2);
 }
 
-void cevf_unregister_sock(int sock, cevf_sockevent_t typ) {
-  return eloop_unregister_sock(sock, conv_sockevent_eloope(typ));
-}
+void cevf_unregister_sock(int sock, cevf_sockevent_t typ) { return eloop_unregister_sock(sock, conv_sockevent_eloope(typ)); }
 
 int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data) {
+  // eloop_register_signal(SIGINT, (eloop_signal_handler)handler, user_data);
+  // eloop_register_signal(SIGTERM, (eloop_signal_handler)handler, user_data);
   signal(SIGINT, handler);
   signal(SIGTERM, handler);
   return 0;
@@ -223,63 +212,340 @@ int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data)
 
 /////////////////////////
 
-static struct qmsg2_s *ctrl_mq;
-static char *ctrl_string = "controller_string";
-static void cevf_mainloop(void) {
-  for (;;) {
-    void *msg = ctrl_string;
-    //qmsg2_poll(ctrl_mq, &msg, 0, 100000000);
-    qmsg2_deq(ctrl_mq, &msg);
-    if (msg == NULL) break;
-  }
-}
-
-static CEVF_EV_THFDECL(cevf_mainloop_f, arg1) {
-  cevf_mainloop();
-}
-
-static struct thpillar_s cevf_pillars[] = {
-  {
-    .thtyp = thtyp_producer,
-    .handler = cevf_generic_enqueue_1,
-  },
-  {
-    .thtyp = thtyp_consumer,
-    .handler = cevf_handle_event_1,
-  }
+struct cevf_timeout_s {
+  cevf_timeout_handler_t handler;
+  struct timespec tm;
+  void *ctx;
+  uint8_t cancelled;
 };
+
+static inline struct cevf_timeout_s *new_cevf_timeout_s(cevf_timeout_handler_t handler, struct timespec tm, void *ctx) {
+  struct cevf_timeout_s *ans = (struct cevf_timeout_s *)malloc(sizeof(struct cevf_timeout_s));
+  if (ans == NULL) return NULL;
+  ans->handler = handler;
+  ans->tm = tm;
+  ans->ctx = ctx;
+  ans->cancelled = 0;
+  return ans;
+}
+
+static inline void delete_cevf_timeout_s(struct cevf_timeout_s *s) {
+  if (s == NULL) return;
+  free(s);
+}
+
+static int _timeout_cmpf(const void *timeout_a, const void *timeout_b, const void *ctx) {
+  const struct cevf_timeout_s *a = (struct cevf_timeout_s *)timeout_a;
+  const struct cevf_timeout_s *b = (struct cevf_timeout_s *)timeout_b;
+  return timespec_cmp(a->tm, b->tm);
+}
+
+static inline int _timeout_exec(struct cevf_timeout_s *tmout) { tmout->handler(tmout->ctx); }
+
+typedef enum {
+  cevf_tmouta_add,
+  cevf_tmouta_delete,
+  cevf_tmouta_deleteone,
+} cevf_tmouta_typ_t;
+
+struct cevf_tmouta_s {
+  cevf_tmouta_typ_t typ;
+  struct cevf_timeout_s *tmout;
+  struct timespec *remaining;
+  pthread_cond_t cv;
+  pthread_mutex_t mutex;
+};
+
+static inline struct cevf_tmouta_s *new_cevf_tmouta_s(cevf_tmouta_typ_t typ, struct cevf_timeout_s *tmout, struct timespec *remaining) {
+  struct cevf_tmouta_s *tmouta;
+  tmouta = (struct cevf_tmouta_s *)malloc(sizeof(struct cevf_tmouta_s));
+  if (tmouta == NULL) return NULL;
+  tmouta->typ = typ;
+  tmouta->tmout = tmout;
+  tmouta->remaining = remaining;
+  return tmouta;
+}
+
+#define new_cevf_tmouta_s_add(tmout) new_cevf_tmouta_s(cevf_tmouta_add, tmout, NULL)
+#define new_cevf_tmouta_s_delete(tmout) new_cevf_tmouta_s(cevf_tmouta_delete, tmout, NULL)
+#define new_cevf_tmouta_s_deleteone(tmout, remaining) new_cevf_tmouta_s(cevf_tmouta_deleteone, tmout, remaining)
+
+static inline void delete_cevf_tmouta_s(struct cevf_tmouta_s *s) {
+  if (s == NULL) return;
+  free(s);
+}
+
+static heap_t *tmout_hp = NULL;
+
+static inline struct cevf_timeout_s *_timeout_next(void) {
+  struct cevf_timeout_s *tmout;
+  for (;;) {
+    tmout = (struct cevf_timeout_s *)heap_poll(tmout_hp);
+    if (tmout == NULL) break;
+    if (!tmout->cancelled) break;
+    delete_cevf_timeout_s(tmout);
+  }
+  return tmout;
+}
+
+static inline int _timeout_dump(void) {
+  struct cevf_timeout_s *tmout;
+  for (;;) {
+    tmout = (struct cevf_timeout_s *)heap_poll(tmout_hp);
+    if (tmout == NULL) break;
+    delete_cevf_timeout_s(tmout);
+  }
+}
+
+static inline int _timeout_dumpexec(void) {
+  struct timespec tm;
+  struct cevf_timeout_s *tmout;
+  int ret = 0;
+  for (;;) {
+    tmout = (struct cevf_timeout_s *)heap_peek(tmout_hp);
+    if (tmout == NULL) break;
+    if (clock_gettime(CLOCK_REALTIME, &tm) == -1) {
+      perror("clock_gettime");
+      return -1;
+    }
+    if (tmout->cancelled) {
+      heap_poll(tmout_hp);
+      delete_cevf_timeout_s(tmout);
+    } else if (timespec_cmp(tm, tmout->tm) > 0) {
+      heap_poll(tmout_hp);
+      _timeout_exec(tmout);
+      delete_cevf_timeout_s(tmout);
+      ret++;
+    } else {
+      break;
+    }
+  }
+  return ret;
+}
+
+static inline int _timeout_add(struct cevf_timeout_s *tmout) {
+  int ret;
+  ret = heap_offer(&tmout_hp, tmout);
+  return ret;
+}
+
+static inline int _timeout_delete(struct cevf_timeout_s *tmout) {
+  return 0;  // TODO
+}
+
+static inline int _timeout_deleteone(struct cevf_timeout_s *tmout, struct timespec *remaining) {
+  return 0;  // TODO
+}
+
+static inline int _tmouta_exec(struct cevf_tmouta_s *tmouta, uint8_t need_signal) {
+  if (tmouta == NULL) return 0;
+  if (tmouta->tmout == NULL) return 0;
+  switch (tmouta->typ) {
+    case cevf_tmouta_add:
+      if (_timeout_add(tmouta->tmout)) {
+        // TODO
+      }
+      break;
+    case cevf_tmouta_delete:
+      if (_timeout_delete(tmouta->tmout)) {
+        // TODO
+      }
+      delete_cevf_timeout_s(tmouta->tmout);
+      break;
+    case cevf_tmouta_deleteone:
+      if (_timeout_deleteone(tmouta->tmout, tmouta->remaining)) {
+        // TODO
+      }
+      delete_cevf_timeout_s(tmouta->tmout);
+      break;
+    default:
+      break;
+  }
+
+  if (need_signal) pthread_cond_signal(&tmouta->cv);
+}
+
+static struct qmsg2_s *ctrl_mq;
+
+static inline int _tmouta_enq_waitexec(struct cevf_tmouta_s *tmouta) {
+  int ret = 0;
+
+  if (pthread_mutex_init(&tmouta->mutex, NULL)) goto fail;
+  if (pthread_cond_init(&tmouta->cv, NULL)) goto fail;
+  pthread_mutex_lock(&tmouta->mutex);
+  if (qmsg2_enq(ctrl_mq, tmouta))
+    ret = -1;
+  else
+    pthread_cond_wait(&tmouta->cv, &tmouta->mutex);
+  pthread_mutex_unlock(&tmouta->mutex);
+  pthread_mutex_destroy(&tmouta->mutex);
+  return ret;
+fail:
+  if (tmouta) pthread_mutex_unlock(&tmouta->mutex);
+  if (tmouta) pthread_mutex_destroy(&tmouta->mutex);
+  return -1;
+}
+
+static char *ctrl_string = "controller_string";
+static uint8_t mainloop_start = 0;
+static void cevf_mainloop(void) {
+  struct cevf_tmouta_s *tmouta;
+  struct cevf_timeout_s *tmout;
+  qmsg2_res_t res;
+  for (;;) {
+    res = qmsg2_res_ok;
+    _timeout_dumpexec();
+    void *msg = ctrl_string;
+    tmout = _timeout_next();
+    mainloop_start = 1;
+    if (tmout == NULL)
+      res = qmsg2_deq(ctrl_mq, &msg);
+    else
+      res = qmsg2_poll2(ctrl_mq, &msg, tmout->tm);
+    mainloop_start = 0;
+    if (res == qmsg2_res_timeout) {
+      _timeout_exec(tmout);
+      delete_cevf_timeout_s(tmout);
+    } else if (res == qmsg2_res_interrupt) {
+      _timeout_dump();
+      delete_cevf_timeout_s(tmout);
+    } else if (res == qmsg2_res_ok) {
+      if (msg == NULL) {
+        _timeout_dump();
+        delete_cevf_timeout_s(tmout);
+        break;
+      } else {
+        if (_timeout_add(tmout)) {
+          // TODO
+        }
+        _tmouta_exec((struct cevf_tmouta_s *)msg, 1);
+      }
+    } else {
+      if (_timeout_add(tmout)) {
+        // TODO
+      }
+    }
+  }
+}
+
+int cevf_register_timeout(time_t tv_sec, long tv_nsec, cevf_timeout_handler_t handler, void *ctx) {
+  int ret = 0;
+  struct timespec tm;
+  struct cevf_timeout_s *tmout = NULL;
+  struct cevf_tmouta_s *tmouta = NULL;
+  if (clock_gettime(CLOCK_REALTIME, &tm) == -1) {
+    perror("clock_gettime");
+    return -1;
+  }
+  tm = timespec_add(tm, (struct timespec){.tv_sec = tv_sec, .tv_nsec = tv_nsec});
+  if (handler == NULL) return ret;
+  tmout = new_cevf_timeout_s(handler, tm, ctx);
+  if (tmout == NULL) goto fail;
+  tmouta = new_cevf_tmouta_s_add(tmout);
+  if (tmouta == NULL) goto fail;
+  if (!mainloop_start) {
+    if (_tmouta_exec(tmouta, 0)) goto fail;
+  } else {
+    if (_tmouta_enq_waitexec(tmouta)) goto fail;
+  }
+  delete_cevf_tmouta_s(tmouta);
+  return ret;
+fail:
+  delete_cevf_timeout_s(tmout);
+  delete_cevf_tmouta_s(tmouta);
+  return -1;
+}
+
+int cevf_cancel_timeout(cevf_timeout_handler_t handler, void *ctx) {
+  int ret = 0;
+  struct cevf_timeout_s *tmout = NULL;
+  struct cevf_tmouta_s *tmouta = NULL;
+  if (handler == NULL) return 0;
+  tmout = new_cevf_timeout_s(handler, (struct timespec){0}, ctx);
+  if (tmout == NULL) goto fail;
+  tmouta = new_cevf_tmouta_s_delete(tmout);
+  if (tmouta == NULL) goto fail;
+  if (!mainloop_start) {
+    if (_tmouta_exec(tmouta, 0)) goto fail;
+    delete_cevf_timeout_s(tmout);
+  } else {
+    if (_tmouta_enq_waitexec(tmouta)) goto fail;
+  }
+  delete_cevf_tmouta_s(tmouta);
+  return ret;
+fail:
+  delete_cevf_timeout_s(tmout);
+  delete_cevf_tmouta_s(tmouta);
+  return -1;
+}
+
+int cevf_cancel_timeout_one(cevf_timeout_handler_t handler, void *ctx, struct timespec *remaining) {
+  int ret = 0;
+  struct cevf_timeout_s *tmout = NULL;
+  struct cevf_tmouta_s *tmouta = NULL;
+  if (handler == NULL) return 0;
+  tmout = new_cevf_timeout_s(handler, (struct timespec){0}, ctx);
+  if (tmout == NULL) goto fail;
+  tmouta = new_cevf_tmouta_s_deleteone(tmout, remaining);
+  if (tmouta == NULL) goto fail;
+  if (!mainloop_start) {
+    if (_tmouta_exec(tmouta, 0)) goto fail;
+    delete_cevf_timeout_s(tmout);
+  } else {
+    if (_tmouta_enq_waitexec(tmouta)) goto fail;
+  }
+  delete_cevf_tmouta_s(tmouta);
+  return ret;
+fail:
+  delete_cevf_timeout_s(tmout);
+  delete_cevf_tmouta_s(tmouta);
+  return -1;
+}
+
+/////////////////////////
+
+static CEVF_EV_THFDECL(cevf_mainloop_f, arg1) { cevf_mainloop(); }
+
+static struct thpillar_s cevf_pillars[] = {{
+                                               .thtyp = thtyp_producer,
+                                               .handler = cevf_generic_enqueue_1,
+                                           },
+                                           {
+                                               .thtyp = thtyp_consumer,
+                                               .handler = cevf_handle_event_1,
+                                           }};
 
 static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt, hashmap *m_evtyp_handler) {
   struct thprop_s props[pd_num + cm_thr_cnt + 1];
   cevf_asz_t props_len = 0;
   for (cevf_asz_t i = 0; i < cm_thr_cnt; i++) {
     props[props_len++] = (struct thprop_s){
-      .thstart = CEVF_EV_THFNAME(cevf_generic_consumer_loopf),
-      .stack_size = CEVF_CONSUMER_STACKSIZE,
-      .thtyp = thtyp_consumer,
-      .evtyp = -1, // not being used
-      .terminator = CEVF_EV_THENDNAME(cevf_generic_consumer_loopf),
-      .context = (void *)m_evtyp_handler,
+        .thstart = CEVF_EV_THFNAME(cevf_generic_consumer_loopf),
+        .stack_size = CEVF_CONSUMER_STACKSIZE,
+        .thtyp = thtyp_consumer,
+        .evtyp = -1,  // not being used
+        .terminator = CEVF_EV_THENDNAME(cevf_generic_consumer_loopf),
+        .context = (void *)m_evtyp_handler,
     };
   }
   for (cevf_asz_t i = 0; i < pd_num; i++) {
     props[props_len++] = (struct thprop_s){
-      .thstart = pd_arr[i].thstart,
-      .stack_size = pd_arr[i].stack_size,
-      .thtyp = thtyp_producer,
-      .evtyp = -1, // not being used
-      .terminator = pd_arr[i].terminator,
-      .context = pd_arr[i].context,
+        .thstart = pd_arr[i].thstart,
+        .stack_size = pd_arr[i].stack_size,
+        .thtyp = thtyp_producer,
+        .evtyp = -1,  // not being used
+        .terminator = pd_arr[i].terminator,
+        .context = pd_arr[i].context,
     };
   }
   if (cevf_register_sock_cnt > 0) {
     props[props_len++] = (struct thprop_s){
-      .thstart = CEVF_EV_THFNAME(cevf_mainloop_f),
-      .stack_size = CEVF_CONSUMER_STACKSIZE,
-      .thtyp = thtyp_producer,
-      .evtyp = -1, // not being used
-      .terminator = NULL,
-      .context = NULL,
+        .thstart = CEVF_EV_THFNAME(cevf_mainloop_f),
+        .stack_size = CEVF_CONSUMER_STACKSIZE,
+        .thtyp = thtyp_producer,
+        .evtyp = -1,  // not being used
+        .terminator = NULL,
+        .context = NULL,
     };
   }
 
@@ -314,6 +580,11 @@ static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_
 
 int cevf_init(void) {
   qmsg2_init();
+  tmout_hp = heap_new(_timeout_cmpf, NULL);
+  if (tmout_hp == NULL) {
+    fprintf(stderr, "timeout heap init failed");
+    return -1;
+  }
   data_mq = qmsg2_new_mq(CEVF_DATA_MQ_SZ);
   if (data_mq == QMSG2_ERR_MQ) {
     fprintf(stderr, "data_mq init failed");
@@ -323,7 +594,8 @@ int cevf_init(void) {
   return 0;
 }
 
-int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
+int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr,
+             cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
   int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
@@ -359,5 +631,6 @@ void cevf_terminate(void) {
 void cevf_deinit(void) {
   eloop_destroy();
   qmsg2_del_mq(data_mq);
+  heap_free(tmout_hp);
   qmsg2_deinit();
 }
