@@ -152,6 +152,37 @@ qmsg2_res_t qmsg2_deq(struct qmsg2_s *mq, void **buf) {
 	return qmsg2_res_ok;
 }
 
+qmsg2_res_t qmsg2_poll2_nointr(struct qmsg2_s *mq, void **buf, struct timespec tm) {
+  while (sem_timedwait(&mq->full, &tm)) {
+    if (errno == EINTR) errno = 0;
+    else if (errno == ETIMEDOUT)
+      return qmsg2_res_timeout;
+    else {
+      perror("sem_timedwait");
+      return qmsg2_res_error;
+    }
+  }
+	if (pthread_mutex_lock(&mq->mutex)) {
+    perror("pthread_mutex_lock");
+    return qmsg2_res_error;
+  }
+
+	*buf = mq->buffer[mq->removes];
+	mq->buffer[mq->removes++] = NULL;
+	mq->removes = mq->removes % mq->bufsz;
+
+	if (pthread_mutex_unlock(&mq->mutex)) {
+    perror("pthread_mutex_unlock");
+    return qmsg2_res_error;
+  }
+	if (sem_post(&mq->empty)) {
+    perror("sem_post");
+    return qmsg2_res_error;
+  }
+
+	return qmsg2_res_ok;
+}
+
 qmsg2_res_t qmsg2_poll2(struct qmsg2_s *mq, void **buf, struct timespec tm) {
   if (sem_timedwait(&mq->full, &tm)) {
     if (errno == ETIMEDOUT) return qmsg2_res_timeout;

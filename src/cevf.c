@@ -401,13 +401,10 @@ static void cevf_mainloop(void) {
     if (tmout == NULL)
       res = qmsg2_deq(ctrl_mq, &msg);
     else
-      res = qmsg2_poll2(ctrl_mq, &msg, tmout->tm);
+      res = qmsg2_poll2_nointr(ctrl_mq, &msg, tmout->tm);
     mainloop_start = 0;
     if (res == qmsg2_res_timeout) {
       _timeout_exec(tmout);
-      delete_cevf_timeout_s(tmout);
-    } else if (res == qmsg2_res_interrupt) {
-      _timeout_dump();
       delete_cevf_timeout_s(tmout);
     } else if (res == qmsg2_res_ok) {
       if (msg == NULL) {
