@@ -486,7 +486,8 @@ static inline int _timeout_deleteone(struct cevf_timeout_s *tmout, struct timesp
 
   if (tmout2 = (struct cevf_timeout_s *)heap_poll(tmouthp2)) {
     _timeout_remove_from_mainheap(tmout2);
-    *remaining = timespec_sub(tmout2->tm, tm);
+    if (remaining)
+      *remaining = timespec_sub(tmout2->tm, tm);
     delete_cevf_timeout_s(tmout2);
     ret = 1;
   }
