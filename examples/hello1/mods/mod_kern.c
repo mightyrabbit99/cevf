@@ -15,6 +15,7 @@ static CEVF_THFDECL(a1_pcap_loop, arg1) {
   int i = 0;
   uint8_t *data;
   size_t datalen = 30;
+  cevf_qmsg2_res_t ret;
   console_log("%s: starting generator loop...\n", __FUNCTION__);
   pcap_mq = cevf_qmsg_new_mq(5);
   if (pcap_mq == NULL) {
@@ -25,12 +26,13 @@ static CEVF_THFDECL(a1_pcap_loop, arg1) {
   for (;;) {
     void *pollres = pcap_string;
     console_log("%s: polling\n", __FUNCTION__);
-    if (cevf_qmsg_poll(pcap_mq, &pollres, 1)) {
-      console_log("%s: msq poll failed!\n", __FUNCTION__);
+    ret = cevf_qmsg_poll(pcap_mq, &pollres, 1, 0);
+    if (ret == cevf_qmsg2_res_ok && pollres == NULL) {
+      console_log("%s: stopping generator loop...\n", __FUNCTION__);
       break;
     }
-    if (pollres == NULL) {
-      console_log("%s: stopping generator loop...\n", __FUNCTION__);
+    if (ret != cevf_qmsg2_res_timeout) {
+      console_log("%s: msq poll failed!\n", __FUNCTION__);
       break;
     }
     data = (uint8_t *)malloc(datalen);

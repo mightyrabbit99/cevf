@@ -169,6 +169,20 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
 int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
 
 /////////////////////////
+
+static cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
+  switch (typ) {
+    case qmsg2_res_ok:
+      return cevf_qmsg2_res_ok;
+    case qmsg2_res_timeout:
+      return cevf_qmsg2_res_timeout;
+    case qmsg2_res_error:
+      return cevf_qmsg2_res_error;
+    default:
+      return cevf_qmsg2_res_error;
+  }
+}
+
 cevf_mq_t cevf_qmsg_new_mq(size_t sz) { return (cevf_mq_t)qmsg2_new_mq(sz); }
 
 int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
@@ -176,9 +190,9 @@ int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
   return qmsg2_enq((struct qmsg2_s *)mt, item);
 }
 
-int cevf_qmsg_deq(cevf_mq_t mt, void **buf) { return qmsg2_deq((struct qmsg2_s *)mt, buf); }
+cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf) { return conv_qmsgres_res2(qmsg2_deq((struct qmsg2_s *)mt, buf)); }
 
-int cevf_qmsg_poll(cevf_mq_t mt, void *buf, int timeout) { return qmsg2_poll((struct qmsg2_s *)mt, buf, timeout, 0); }
+cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) { return conv_qmsgres_res2(qmsg2_poll_nointr((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec)); }
 
 void cevf_qmsg_del_mq(cevf_mq_t mt) { qmsg2_del_mq((struct qmsg2_s *)mt); }
 
@@ -293,8 +307,8 @@ struct tmok_s {
 
 static inline struct tmok_s create_tmok_s(struct cevf_timeout_s *tmout) {
   return (struct tmok_s){
-    .handler = tmout->handler,
-    .ctx = tmout->ctx,
+      .handler = tmout->handler,
+      .ctx = tmout->ctx,
   };
 }
 
@@ -385,7 +399,7 @@ static inline int _timeout_flush_mainheap(void) {
   }
 }
 
-static void _timeout_free_hashmap(void *key, size_t ksize, uintptr_t value, void *usr)  {
+static void _timeout_free_hashmap(void *key, size_t ksize, uintptr_t value, void *usr) {
   struct cevf_timeout_s *tmout2;
   heap_t *tmouthp2 = (heap_t *)value;
   while (tmout2 = (struct cevf_timeout_s *)heap_poll(tmouthp2)) {
@@ -451,7 +465,7 @@ static inline int _timeout_delete(struct cevf_timeout_s *tmout) {
   heap_t *tmouthp2 = NULL;
   struct tmok_s tmok = create_tmok_s(tmout);
   size_t ret = 0;
-  
+
   pthread_mutex_lock(&m_tmok_tmouthp_mutex);
   if (!hashmap_get(m_tmok_tmouthp, &tmok, sizeof(tmok), (uintptr_t *)&tmouthp2)) {
     pthread_mutex_unlock(&m_tmok_tmouthp_mutex);
@@ -486,8 +500,7 @@ static inline int _timeout_deleteone(struct cevf_timeout_s *tmout, struct timesp
 
   if (tmout2 = (struct cevf_timeout_s *)heap_poll(tmouthp2)) {
     _timeout_remove_from_mainheap(tmout2);
-    if (remaining)
-      *remaining = timespec_sub(tmout2->tm, tm);
+    if (remaining) *remaining = timespec_sub(tmout2->tm, tm);
     delete_cevf_timeout_s(tmout2);
     ret = 1;
   }
@@ -691,8 +704,8 @@ fail:
 int cevf_is_timeout_registered(cevf_timeout_handler_t handler, void *ctx) {
   heap_t *tmouthp2 = NULL;
   struct tmok_s tmok = (struct tmok_s){
-    .handler = handler,
-    .ctx = ctx,
+      .handler = handler,
+      .ctx = ctx,
   };
   pthread_mutex_lock(&m_tmok_tmouthp_mutex);
   if (!hashmap_get(m_tmok_tmouthp, &tmok, sizeof(tmok), (uintptr_t *)&tmouthp2)) {

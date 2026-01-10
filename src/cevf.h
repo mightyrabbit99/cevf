@@ -16,6 +16,12 @@ typedef enum {
 	CEVF_SOCKEVENT_TYPE_EXCEPTION
 } cevf_sockevent_t;
 
+typedef enum {
+  cevf_qmsg2_res_ok,
+  cevf_qmsg2_res_timeout,
+  cevf_qmsg2_res_error,
+} cevf_qmsg2_res_t;
+
 typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
 typedef int (*cevf_initfunc_t)(void);
@@ -67,8 +73,8 @@ int cevf_init(void);
 int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);
-int cevf_qmsg_deq(cevf_mq_t mt, void **buf);
-int cevf_qmsg_poll(cevf_mq_t mt, void *buf, int timeout);
+cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf);
+cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec);
 void cevf_qmsg_del_mq(cevf_mq_t mt);
 int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handler, void *arg1, void *arg2);
 void cevf_unregister_sock(int sock, cevf_sockevent_t typ);

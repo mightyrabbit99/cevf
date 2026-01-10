@@ -221,6 +221,16 @@ qmsg2_res_t qmsg2_poll(struct qmsg2_s *mq, void **buf, time_t tv_sec, long tv_ns
   return qmsg2_poll2(mq, buf, tm);
 }
 
+qmsg2_res_t qmsg2_poll_nointr(struct qmsg2_s *mq, void **buf, time_t tv_sec, long tv_nsec) {
+  struct timespec tm;
+  if (clock_gettime(CLOCK_REALTIME, &tm) == -1) {
+    perror("clock_gettime");
+    return -1;
+  }
+  tm = timespec_add(tm, (struct timespec){ .tv_sec = tv_sec, .tv_nsec = tv_nsec });
+  return qmsg2_poll2_nointr(mq, buf, tm);
+}
+
 int qmsg2_flush(struct qmsg2_s *mq, typeof(void(void *)) destroyer) {
   if (pthread_mutex_lock(&mq->mutex)) {
     perror("pthread_mutex_lock");

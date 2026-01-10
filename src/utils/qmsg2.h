@@ -26,6 +26,7 @@ int qmsg2_enq(struct qmsg2_s *mq, void *item);
 int qmsg2_enq_soft(struct qmsg2_s *mq, void *item);
 qmsg2_res_t qmsg2_deq(struct qmsg2_s *mq, void **buf);
 qmsg2_res_t qmsg2_poll(struct qmsg2_s *mq, void **buf, time_t tv_sec, long tv_nsec);
+qmsg2_res_t qmsg2_poll_nointr(struct qmsg2_s *mq, void **buf, time_t tv_sec, long tv_nsec);
 qmsg2_res_t qmsg2_poll2(struct qmsg2_s *mq, void **buf, struct timespec tm);
 qmsg2_res_t qmsg2_poll2_nointr(struct qmsg2_s *mq, void **buf, struct timespec tm);
 int qmsg2_flush(struct qmsg2_s *mq, typeof(void(void *)) destroyer);
