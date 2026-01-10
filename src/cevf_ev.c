@@ -227,6 +227,7 @@ int ev_join(struct thstat_s *thstat) {
   void *res;
   int s;
   uint8_t tnum;
+  if (thstat == NULL) return 0;
   struct thinfo_s **thinfo_arr = thstat->thinfo_arr;
   for (uint8_t i = 0; i < thstat->thinfo_arr_len; i++) {
     tnum = thstat->thinfo_arr_len - i - 1;

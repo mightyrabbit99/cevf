@@ -811,6 +811,7 @@ int cevf_init(void) {
 int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr,
              cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
   int ret = 0;
+  struct thstat_s *thstat = NULL;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
 
@@ -822,10 +823,11 @@ int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t i
 
   if (ret = cevf_run_initialisers(ini_arr, ini_num)) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
-  struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
+  if (pd_num > 0 || heap_count(tmout_hp) > 0)
+    thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
   if (cevf_register_sock_cnt > 0)
     eloop_run();
-  else
+  else if (thstat)
     cevf_mainloop();
   ev_join(thstat);
   ev_deinit();
