@@ -19,6 +19,7 @@ typedef enum {
 typedef enum {
   cevf_qmsg2_res_ok,
   cevf_qmsg2_res_timeout,
+  cevf_qmsg2_res_interrupt,
   cevf_qmsg2_res_error,
 } cevf_qmsg2_res_t;
 
@@ -75,6 +76,7 @@ cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);
 cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf);
 cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec);
+cevf_qmsg2_res_t cevf_qmsg_poll_nointr(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec);
 void cevf_qmsg_del_mq(cevf_mq_t mt);
 int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handler, void *arg1, void *arg2);
 void cevf_unregister_sock(int sock, cevf_sockevent_t typ);

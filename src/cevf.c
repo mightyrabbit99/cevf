@@ -176,6 +176,8 @@ static cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
       return cevf_qmsg2_res_ok;
     case qmsg2_res_timeout:
       return cevf_qmsg2_res_timeout;
+    case qmsg2_res_interrupt:
+      return cevf_qmsg2_res_interrupt;
     case qmsg2_res_error:
       return cevf_qmsg2_res_error;
     default:
@@ -192,7 +194,9 @@ int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
 
 cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf) { return conv_qmsgres_res2(qmsg2_deq((struct qmsg2_s *)mt, buf)); }
 
-cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) { return conv_qmsgres_res2(qmsg2_poll_nointr((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec)); }
+cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) { return conv_qmsgres_res2(qmsg2_poll((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec)); }
+
+cevf_qmsg2_res_t cevf_qmsg_poll_nointr(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) { return conv_qmsgres_res2(qmsg2_poll_nointr((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec)); }
 
 void cevf_qmsg_del_mq(cevf_mq_t mt) { qmsg2_del_mq((struct qmsg2_s *)mt); }
 

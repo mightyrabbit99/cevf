@@ -26,7 +26,7 @@ static CEVF_THFDECL(a1_pcap_loop, arg1) {
   for (;;) {
     void *pollres = pcap_string;
     console_log("%s: polling\n", __FUNCTION__);
-    ret = cevf_qmsg_poll(pcap_mq, &pollres, 1, 0);
+    ret = cevf_qmsg_poll_nointr(pcap_mq, &pollres, 1, 0);
     if (ret == cevf_qmsg2_res_ok && pollres == NULL) {
       console_log("%s: stopping generator loop...\n", __FUNCTION__);
       break;
