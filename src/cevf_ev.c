@@ -161,10 +161,11 @@ static void _destroy_th_2(void *thinfo) {
   destroy_th((struct thinfo_s *)thinfo);
 }
 
-static struct ids_s *th_ids;
+static struct ids_s *th_ids = NULL;
 
 ev_th_id_t ev_add_th(struct thprop_s pd) {
   ev_th_id_t id = (ev_th_id_t)-1;
+  if (th_ids == NULL) goto fail;
   struct thinfo_s *thinfo = create_th(pd);
   if (thinfo == NULL) goto fail;
 
@@ -177,10 +178,13 @@ fail:
 }
 
 int ev_rm_th(ev_th_id_t id) {
+  if (th_ids == NULL) goto fail;
   struct thinfo_s *thinfo = (struct thinfo_s *)ids_get_item(th_ids, (ids_id_t)id);
   terminate_th(thinfo);
   destroy_th(thinfo);
   return ids_rm_item(th_ids, (ids_id_t)id);
+fail:
+  return -1;
 }
 
 static void *ev_generic_thread_f(void *arg) {
