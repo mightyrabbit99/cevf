@@ -9,6 +9,7 @@
 
 #include <time.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 typedef enum {
   qmsg2_res_ok,
@@ -30,6 +31,7 @@ qmsg2_res_t qmsg2_poll_nointr(struct qmsg2_s *mq, void **buf, time_t tv_sec, lon
 qmsg2_res_t qmsg2_poll2(struct qmsg2_s *mq, void **buf, struct timespec tm);
 qmsg2_res_t qmsg2_poll2_nointr(struct qmsg2_s *mq, void **buf, struct timespec tm);
 int qmsg2_flush(struct qmsg2_s *mq, typeof(void(void *)) destroyer);
+ssize_t qmsg2_count(struct qmsg2_s *mq);
 
 #define QMSG2_ERR_MQ NULL
 #endif // qmsg2_h

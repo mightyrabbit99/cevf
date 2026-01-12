@@ -55,7 +55,7 @@
 #define CEVF_DATA_MQ_SZ 10
 #define CEVF_TIMEOUT_HP_SZ 10
 
-static struct qmsg2_s *data_mq;
+static struct qmsg2_s *data_mq = NULL;
 
 struct _data_s {
   cevf_evtyp_t evtyp;
@@ -63,21 +63,33 @@ struct _data_s {
   uint8_t *data;
 };
 
+static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1);
+
 int cevf_generic_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
   int ret;
-  struct _data_s *d = (struct _data_s *)malloc(sizeof(struct _data_s));
+  struct _data_s *d;
+  if (data_mq == NULL) return -1;
+  d = (struct _data_s *)malloc(sizeof(struct _data_s));
   d->evtyp = evtyp;
   d->data = data;
   d->datalen = datalen;
-  if (ret = qmsg2_enq(data_mq, (void *)d) < 0) {
-    free(d);
+  if (ev_is_running(CEVF_EV_THFNAME(cevf_generic_consumer_loopf))) {
+    if (ret = qmsg2_enq(data_mq, (void *)d) < 0) {
+      free(d);
+    }
+  } else {
+    if (ret = qmsg2_enq_soft(data_mq, (void *)d) < 0) {
+      free(d);
+    }
   }
+
   return ret;
 }
 
 static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp) {
   size_t datalen;
   void *msg = NULL;
+  if (data_mq == NULL) return -1;
   qmsg2_deq(data_mq, &msg);
   if (msg == NULL) return -1;
   struct _data_s *d = (struct _data_s *)msg;
