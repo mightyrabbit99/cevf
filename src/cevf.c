@@ -55,7 +55,7 @@
 #define CEVF_DATA_MQ_SZ 10
 #define CEVF_TIMEOUT_HP_SZ 10
 
-static struct qmsg2_s *data_mq;
+static struct qmsg2_s *data_mq = NULL;
 
 struct _data_s {
   cevf_evtyp_t evtyp;
@@ -63,21 +63,33 @@ struct _data_s {
   uint8_t *data;
 };
 
+static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1);
+
 int cevf_generic_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
   int ret;
-  struct _data_s *d = (struct _data_s *)malloc(sizeof(struct _data_s));
+  struct _data_s *d;
+  if (data_mq == NULL) return -1;
+  d = (struct _data_s *)malloc(sizeof(struct _data_s));
   d->evtyp = evtyp;
   d->data = data;
   d->datalen = datalen;
-  if (ret = qmsg2_enq(data_mq, (void *)d) < 0) {
-    free(d);
+  if (ev_is_running(CEVF_EV_THFNAME(cevf_generic_consumer_loopf))) {
+    if (ret = qmsg2_enq(data_mq, (void *)d) < 0) {
+      free(d);
+    }
+  } else {
+    if (ret = qmsg2_enq_soft(data_mq, (void *)d) < 0) {
+      free(d);
+    }
   }
+
   return ret;
 }
 
 static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp) {
   size_t datalen;
   void *msg = NULL;
+  if (data_mq == NULL) return -1;
   qmsg2_deq(data_mq, &msg);
   if (msg == NULL) return -1;
   struct _data_s *d = (struct _data_s *)msg;
@@ -812,6 +824,7 @@ int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t i
              cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
   int ret = 0;
   struct thstat_s *thstat = NULL;
+  if (data_mq == NULL) return -1;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
 
@@ -823,7 +836,7 @@ int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t i
 
   if (ret = cevf_run_initialisers(ini_arr, ini_num)) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
-  if (pd_num > 0 || heap_count(tmout_hp) > 0)
+  if (pd_num > 0 || heap_count(tmout_hp) > 0 || qmsg2_count(data_mq) > 0)
     thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
   if (cevf_register_sock_cnt > 0)
     eloop_run();

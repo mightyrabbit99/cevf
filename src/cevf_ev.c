@@ -84,6 +84,58 @@ static hashmap *m_thtyp_handler = NULL;
 
 static void *ev_generic_thread_f(void *arg);
 
+static hashmap *m_thfunc_cnt = NULL;
+pthread_mutex_t th_cnt_mutex;
+
+inline static int th_cnt_inc(cevf_thfunc_t thstart) {
+  uintptr_t ans = 0;
+  pthread_mutex_lock(&th_cnt_mutex);
+  hashmap_get(m_thfunc_cnt, &thstart, sizeof(thstart), &ans);
+  pthread_mutex_unlock(&th_cnt_mutex);
+  ans++;
+  pthread_mutex_lock(&th_cnt_mutex);
+  hashmap_set(m_thfunc_cnt, &thstart, sizeof(thstart), ans);
+  pthread_mutex_unlock(&th_cnt_mutex);
+  return 0;
+}
+
+inline static int th_cnt_dec(cevf_thfunc_t thstart) {
+  uintptr_t ans = 0;
+  pthread_mutex_lock(&th_cnt_mutex);
+  if (!hashmap_get(m_thfunc_cnt, &thstart, sizeof(thstart), &ans)) {
+    pthread_mutex_unlock(&th_cnt_mutex);
+    return -1;
+  }
+  pthread_mutex_unlock(&th_cnt_mutex);
+  if (ans == 0) return -1;
+  ans--;
+  pthread_mutex_lock(&th_cnt_mutex);
+  hashmap_set(m_thfunc_cnt, &thstart, sizeof(thstart), ans);
+  pthread_mutex_unlock(&th_cnt_mutex);
+  return 0;
+}
+
+inline static ssize_t th_cnt_get(cevf_thfunc_t thstart) {
+  uintptr_t ans = 0;
+  pthread_mutex_lock(&th_cnt_mutex);
+  if (!hashmap_get(m_thfunc_cnt, &thstart, sizeof(thstart), (uintptr_t *)&ans)) {
+    pthread_mutex_unlock(&th_cnt_mutex);
+    return -1;
+  }
+  pthread_mutex_unlock(&th_cnt_mutex);
+  return (size_t)ans;
+}
+
+inline static void th_cnt_init(void) {
+  m_thfunc_cnt = hashmap_create();
+  pthread_mutex_init(&th_cnt_mutex, NULL);
+}
+
+inline static void th_cnt_deinit(void) {
+  pthread_mutex_destroy(&th_cnt_mutex);
+  hashmap_free(m_thfunc_cnt);
+}
+
 static struct thinfo_s *create_th(struct thprop_s pd) {
   pthread_attr_t attr;
   evhandler_t handler;
@@ -190,6 +242,7 @@ fail:
 static void *ev_generic_thread_f(void *arg) {
   struct thinfo_s *thinfo = (struct thinfo_s *)arg;
   cevf_thendf_t term;
+  th_cnt_inc(thinfo->thstart);
   void *res = thinfo->thstart(thinfo->tharg);
   if (thinfo->dynamic_id != (ev_th_id_t)-1) ev_rm_th(thinfo->dynamic_id);
   else {
@@ -199,11 +252,13 @@ static void *ev_generic_thread_f(void *arg) {
     pthread_mutex_unlock(&thinfo->term_mut);
     if (term) term(thinfo->tharg->context);
   }
+  th_cnt_dec(thinfo->thstart);
   return res;
 }
 
 void ev_init(struct thpillar_s pillars[], size_t pillars_len) {
   th_ids = ids_new_idsys();
+  th_cnt_init();
   m_thtyp_handler = compile_m_thtyp_handler(pillars, pillars_len);
 }
 
@@ -212,6 +267,7 @@ void ev_deinit(void) {
   ids_foreach(th_ids, _terminate_th_2);
   ids_foreach(th_ids, _destroy_th_2);
   ids_free_idsys(th_ids);
+  th_cnt_deinit();
 }
 
 struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len) {
@@ -225,6 +281,10 @@ struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len) {
   ret->thinfo_arr = thinfo;
   ret->thinfo_arr_len = props_len;
   return ret;
+}
+
+int ev_is_running(cevf_thfunc_t thstart) {
+  return th_cnt_get(thstart) > 0;
 }
 
 int ev_join(struct thstat_s *thstat) {

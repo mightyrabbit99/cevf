@@ -76,6 +76,7 @@ void qmsg2_del_mq(struct qmsg2_s *mq) {
 }
 
 int qmsg2_enq(struct qmsg2_s *mq, void *item) {
+  if (mq == NULL) return -1;
   if (sem_wait(&mq->empty)) {
     perror("sem_wait");
     return -1;
@@ -100,7 +101,28 @@ int qmsg2_enq(struct qmsg2_s *mq, void *item) {
 	return 0;
 }
 
+ssize_t qmsg2_count(struct qmsg2_s *mq) {
+  size_t ans = 0;
+  if (mq == NULL) return -1;
+  if (pthread_mutex_lock(&mq->mutex)) {
+    perror("pthread_mutex_lock");
+    return -1;
+  }
+
+	if (mq->inserts >= mq->removes)
+    ans = mq->inserts - mq->removes;
+  else
+    ans = mq->bufsz - mq->removes + mq->inserts;
+
+	if (pthread_mutex_unlock(&mq->mutex)) {
+    perror("pthread_mutex_unlock");
+    return -1;
+  }
+  return ans;
+}
+
 int qmsg2_enq_soft(struct qmsg2_s *mq, void *item) {
+  if (mq == NULL) return -1;
   if (sem_trywait(&mq->empty)) {
     if (errno == EAGAIN) return -1;
     perror("sem_trywait");
@@ -127,6 +149,7 @@ int qmsg2_enq_soft(struct qmsg2_s *mq, void *item) {
 }
 
 qmsg2_res_t qmsg2_deq(struct qmsg2_s *mq, void **buf) {
+  if (mq == NULL) return qmsg2_res_error;
   if (sem_wait(&mq->full)) {
     perror("sem_wait");
     return qmsg2_res_error;
@@ -153,6 +176,7 @@ qmsg2_res_t qmsg2_deq(struct qmsg2_s *mq, void **buf) {
 }
 
 qmsg2_res_t qmsg2_poll2_nointr(struct qmsg2_s *mq, void **buf, struct timespec tm) {
+  if (mq == NULL) return qmsg2_res_error;
   while (sem_timedwait(&mq->full, &tm)) {
     if (errno == EINTR) errno = 0;
     else if (errno == ETIMEDOUT)
@@ -184,6 +208,7 @@ qmsg2_res_t qmsg2_poll2_nointr(struct qmsg2_s *mq, void **buf, struct timespec t
 }
 
 qmsg2_res_t qmsg2_poll2(struct qmsg2_s *mq, void **buf, struct timespec tm) {
+  if (mq == NULL) return qmsg2_res_error;
   if (sem_timedwait(&mq->full, &tm)) {
     if (errno == ETIMEDOUT) return qmsg2_res_timeout;
     if (errno == EINTR) return qmsg2_res_interrupt;
@@ -232,6 +257,7 @@ qmsg2_res_t qmsg2_poll_nointr(struct qmsg2_s *mq, void **buf, time_t tv_sec, lon
 }
 
 int qmsg2_flush(struct qmsg2_s *mq, typeof(void(void *)) destroyer) {
+  if (mq == NULL) return -1;
   if (pthread_mutex_lock(&mq->mutex)) {
     perror("pthread_mutex_lock");
     return -1;

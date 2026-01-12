@@ -58,6 +58,7 @@ int ev_rm_th(ev_th_id_t id);
 void ev_init(struct thpillar_s pillars[], size_t pillars_len);
 void ev_deinit(void);
 struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len);
+int ev_is_running(cevf_thfunc_t thstart);
 int ev_join(struct thstat_s *thstat);
 #define ev_handle2(argname, data, datalen, evtyp) ((struct tharg_s *)argname)->handler(data, datalen, evtyp, ((struct tharg_s *)argname)->context)
 #define ev_handle(argname, data, datalen) ev_handle2(argname, data, datalen, ((struct tharg_s *)argname)->evtyp)
