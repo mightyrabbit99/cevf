@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 mightyrabbit99
+ * Copyright (c) 2025 Tan Wah Ken
  *
  * License: The MIT License (MIT)
  */
