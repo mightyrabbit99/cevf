@@ -81,23 +81,22 @@ struct _data_s {
   uint8_t need_freed;
 };
 
-static inline struct _data_s *new_data_s(cevf_evtyp_t evtyp, uint8_t *data, size_t datalen, uint8_t copy) {
+static inline struct _data_s *new_data_s(cevf_evtyp_t evtyp, uint8_t *data, size_t datalen) {
   struct _data_s *ans = (struct _data_s *)malloc(sizeof(struct _data_s));
   if (ans == NULL) return NULL;
   ans->evtyp = evtyp;
-  if (copy) {
-    ans->data = (uint8_t *)malloc(datalen);
-    if (ans->data == NULL) goto fail;
-    ans->need_freed = 1;
-  } else {
-    ans->data = data;
-    ans->need_freed = 0;
-  }
+  ans->data = data;
   ans->datalen = datalen;
+  ans->need_freed = 0;
   return ans;
-fail:
-  free(ans);
-  return NULL;
+}
+
+static inline uint8_t *_copy_data(struct _data_s *d, const uint8_t *data, size_t datalen) {
+  d->data = (uint8_t *)malloc(datalen);
+  if (d->data == NULL) return NULL;
+  memcpy(d->data, data, datalen);
+  d->need_freed = 1;
+  return d->data;
 }
 
 static inline void delete_data_s(struct _data_s *d) {
@@ -127,7 +126,7 @@ static inline cevf_qmsg2_res_t _cevf_evq_enqueue_soft(struct _data_s *d, cevf_ev
 }
 
 cevf_qmsg2_res_t cevf_generic_enqueue(void *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, datalen, 0);
+  struct _data_s *d = new_data_s(evtyp, data, datalen);
   if (d == NULL) return cevf_qmsg2_res_error;
   cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
   if (res != cevf_qmsg2_res_ok)
@@ -136,27 +135,45 @@ cevf_qmsg2_res_t cevf_generic_enqueue(void *data, size_t datalen, cevf_evtyp_t e
 }
 
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, datalen, 0);
+  struct _data_s *d = new_data_s(evtyp, data, datalen);
   cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
   if (res != cevf_qmsg2_res_ok)
     delete_data_s(d);
   return conv_qmsgres_res2(res);
 }
 
-cevf_qmsg2_res_t cevf_copy_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, datalen, 1);
-  cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
-  if (res != cevf_qmsg2_res_ok)
-    delete_data_s(d);
+cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+  struct _data_s *d = NULL;
+  uint8_t *data2 = NULL;
+  cevf_qmsg2_res_t res = cevf_qmsg2_res_error;
+  d = new_data_s(evtyp, NULL, 0);
+  if (d == NULL) goto fail;
+  data2 = _copy_data(d, data, datalen);
+  if (data2 == NULL) goto fail;
+  res = _cevf_evq_enqueue(d, evtyp);
+  if (res != cevf_qmsg2_res_ok) goto fail;
   return conv_qmsgres_res2(res);
+fail:
+  if (d) delete_data_s(d);
+  if (data2) free(data2);
+  return res;
 }
 
-cevf_qmsg2_res_t cevf_copy_enqueue_soft(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, datalen, 1);
-  cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
-  if (res != cevf_qmsg2_res_ok)
-    delete_data_s(d);
+cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+  struct _data_s *d = NULL;
+  uint8_t *data2 = NULL;
+  cevf_qmsg2_res_t res = cevf_qmsg2_res_error;
+  d = new_data_s(evtyp, NULL, 0);
+  if (d == NULL) goto fail;
+  data2 = _copy_data(d, data, datalen);
+  if (data2 == NULL) goto fail;
+  res = _cevf_evq_enqueue_soft(d, evtyp);
+  if (res != cevf_qmsg2_res_ok) goto fail;
   return conv_qmsgres_res2(res);
+fail:
+  if (d) delete_data_s(d);
+  if (data2) free(data2);
+  return res;
 }
 
 static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp, uint8_t *need_freed) {

@@ -17,11 +17,11 @@ typedef enum {
 } cevf_sockevent_t;
 
 typedef enum {
+  cevf_qmsg2_res_error = -1,
   cevf_qmsg2_res_ok,
   cevf_qmsg2_res_timeout,
   cevf_qmsg2_res_interrupt,
   cevf_qmsg2_res_softblocked,
-  cevf_qmsg2_res_error,
 } cevf_qmsg2_res_t;
 
 typedef void *(*cevf_thfunc_t)(void *tharg);
@@ -72,8 +72,8 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd);
 int cevf_rm_producer(cevf_producer_id_t id);
 cevf_qmsg2_res_t cevf_generic_enqueue(void *data, size_t datalen, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, size_t datalen, cevf_evtyp_t evtyp);
-cevf_qmsg2_res_t cevf_copy_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
-cevf_qmsg2_res_t cevf_copy_enqueue_soft(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
+cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
+cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 int cevf_init(void);
 int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
