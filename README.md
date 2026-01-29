@@ -19,5 +19,5 @@ cmake --install build --prefix _install
 
 run the hello1 example
 ```sh
-_install/bin/hello1 -s a
+CEVF_MODS=_install/lib/cevfms/cevfm-hello1.so LD_LIBRARY_PATH=_install/lib _install/bin/cevfd -s a
 ```

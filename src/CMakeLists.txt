@@ -19,7 +19,6 @@ target_sources(cevf
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
       cevf.h
-      cevf_main.h
       cevf_mod.h
 )
 target_include_directories(cevf
@@ -51,7 +50,6 @@ target_sources(cevf-static
   PUBLIC FILE_SET HEADERS
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
       cevf.h
-      cevf_main.h
       cevf_mod.h
 )
 target_include_directories(cevf-static
@@ -62,4 +60,24 @@ install(TARGETS cevf-static
   FILE_SET HEADERS DESTINATION include
   LIBRARY DESTINATION lib
   PUBLIC_HEADER DESTINATION include
+)
+
+add_executable(cevfd)
+target_link_options(cevfd PRIVATE -rdynamic)
+set_target_properties(cevfd PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfd
+  PRIVATE
+    cevfd.c
+)
+target_link_libraries(cevfd
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfd
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
+install(TARGETS cevfd
+  DESTINATION bin
 )

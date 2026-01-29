@@ -1,13 +1,5 @@
-#ifndef MOD_H
-#define MOD_H
-#include "cevf_mod.h"
-#include <stdlib.h>
-#include <string.h>
-
-enum _evtyp {
-  evt_a1_toreply,
-};
-
+#ifndef TCP1_H
+#define TCP1_H
 struct sock_toreply_s {
   int sd;
   char *rcvdata;
@@ -35,4 +27,4 @@ inline static void delete_sock_toreply_s(struct sock_toreply_s *s) {
   free(s);
 }
 
-#endif // MOD_H
+#endif // TCP1_H
