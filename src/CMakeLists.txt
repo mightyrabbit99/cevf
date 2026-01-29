@@ -81,3 +81,27 @@ target_include_directories(cevfd
 install(TARGETS cevfd
   DESTINATION bin
 )
+
+if(BUILD_CEVF_LUA)
+add_library(cevf-lualib SHARED)
+set_target_properties(cevf-lualib PROPERTIES LIBRARY_OUTPUT_NAME "cevflua")
+set_target_properties(cevf-lualib PROPERTIES PREFIX "")
+set_target_properties(cevf-lualib PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_include_directories(cevf-lualib
+  PRIVATE
+    ${LUA_INCLUDE_DIR}
+)
+target_sources(cevf-lualib
+  PRIVATE
+    cevf_lualib.c
+)
+target_link_libraries(cevf-lualib
+  PUBLIC
+    cevf
+)
+install(TARGETS cevf-lualib
+  FILE_SET HEADERS DESTINATION include
+  LIBRARY DESTINATION lib/lua
+  PUBLIC_HEADER DESTINATION include
+)
+endif()
