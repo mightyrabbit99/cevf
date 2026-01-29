@@ -216,7 +216,7 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   int ret = 0;
   uint8_t *data;
   ssize_t datalen;
-  uint8_t need_freed;
+  uint8_t need_freed = 0;
   cevf_evtyp_t evtyp;
   for (;;) {
     datalen = cevf_generic_dequeue(&data, &evtyp, &need_freed);
@@ -224,7 +224,9 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
     if (evtyp == CEVF_RESERVED_EV_THEND) break;
     if (ret = ev_handle2(arg1, data, datalen, evtyp)) break;
     if (need_freed) free(data);
+    need_freed = 0;
   }
+  if (need_freed) free(data);
   ev_setret(arg1, ret);
   return NULL;
 }
