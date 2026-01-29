@@ -129,16 +129,14 @@ cevf_qmsg2_res_t cevf_generic_enqueue(void *data, size_t datalen, cevf_evtyp_t e
   struct _data_s *d = new_data_s(evtyp, data, datalen);
   if (d == NULL) return cevf_qmsg2_res_error;
   cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
-  if (res != cevf_qmsg2_res_ok)
-    delete_data_s(d);
+  if (res != cevf_qmsg2_res_ok) delete_data_s(d);
   return conv_qmsgres_res2(res);
 }
 
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, size_t datalen, cevf_evtyp_t evtyp) {
   struct _data_s *d = new_data_s(evtyp, data, datalen);
   cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
-  if (res != cevf_qmsg2_res_ok)
-    delete_data_s(d);
+  if (res != cevf_qmsg2_res_ok) delete_data_s(d);
   return conv_qmsgres_res2(res);
 }
 
@@ -864,14 +862,14 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t p
 
 static uint32_t i_ini, j_ini;
 
-static int cevf_run_initialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
+static int cevf_run_initialisers(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
   int res = 0;
   for (uint32_t i = 0; i < CEVF_INI_PRIO_MAX; i_ini = i++) {
     if (ini_num[i] == 0) continue;
     if (ini_arr[i] == NULL) continue;
     for (uint32_t j = 0; j < ini_num[i]; j_ini = j++) {
       if (ini_arr[i][j].init_f == NULL) continue;
-      if (res = ini_arr[i][j].init_f()) return res;
+      if (res = ini_arr[i][j].init_f(argc, argv)) return res;
     }
   }
   return res;
@@ -900,8 +898,8 @@ int cevf_init(void) {
   return 0;
 }
 
-int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr,
-             cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
+int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num,
+             struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
   int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
   if (m_evtyp_handler == NULL) goto fail;
@@ -912,7 +910,7 @@ int cevf_run(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t i
     goto fail;
   }
 
-  if (ret = cevf_run_initialisers(ini_arr, ini_num)) goto fail2;
+  if (ret = cevf_run_initialisers(argc, argv, ini_arr, ini_num)) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
   struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
   if (cevf_register_sock_cnt > 0)

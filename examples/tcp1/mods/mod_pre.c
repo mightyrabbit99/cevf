@@ -112,7 +112,7 @@ fail:
 
 static struct srv_ctx_s *srv = NULL;
 
-static int root_init_1(void) {
+static int root_init_1(int argc, char *argv[]) {
   srv = register_hij_server(8081);
   if (srv == NULL) return -1;
   return 0;

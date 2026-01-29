@@ -18,7 +18,7 @@ cevf_asz_t _cevf_pd_arr_sz = 0;
 struct cevf_consumer_s *_cevf_cm_arr = NULL;
 cevf_asz_t _cevf_cm_arr_sz = 0;
 
-#define cevf_start(cm_thr_cnt) cevf_run(_cevf_ini_arr, _cevf_ini_arr_sz, _cevf_pd_arr, _cevf_pd_arr_sz, _cevf_cm_arr, _cevf_cm_arr_sz, cm_thr_cnt);
+#define cevf_start(argc, argv, cm_thr_cnt) cevf_run(argc, argv, _cevf_ini_arr, _cevf_ini_arr_sz, _cevf_pd_arr, _cevf_pd_arr_sz, _cevf_cm_arr, _cevf_cm_arr_sz, cm_thr_cnt);
 static void __attribute__((constructor)) _cevf_main_cons(void) {
   for (size_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
     _cevf_ini_arr[i] = NULL;

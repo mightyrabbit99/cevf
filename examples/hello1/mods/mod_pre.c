@@ -3,7 +3,7 @@
 
 #define console_log(...) printf(__VA_ARGS__)
 
-static int a1_init_1(void) {
+static int a1_init_1(int argc, char *argv[]) {
   console_log("Hello World!\n");
   return 0;
 }

@@ -16,7 +16,7 @@ static void _produce_ev_1(void *ctx) {
   cevf_register_timeout(1, 0, _produce_ev_1, NULL);
 }
 
-static int a1_init_1(void) {
+static int a1_init_1(int argc, char *argv[]) {
   console_log("Hello World!\n");
   return 0;
 }
@@ -25,7 +25,7 @@ static void a1_deinit_1(void) {
   console_log("End of the World!\n");
 }
 
-static int b1_init_1(void) {
+static int b1_init_1(int argc, char *argv[]) {
   return cevf_register_timeout(1, 0, _produce_ev_1, NULL);
 }
 
