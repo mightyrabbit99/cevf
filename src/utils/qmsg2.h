@@ -14,6 +14,7 @@
 typedef enum {
   qmsg2_res_ok,
   qmsg2_res_interrupt,
+  qmsg2_res_softblocked,
   qmsg2_res_timeout,
   qmsg2_res_error,
 } qmsg2_res_t;

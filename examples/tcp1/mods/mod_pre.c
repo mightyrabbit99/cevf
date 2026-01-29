@@ -18,7 +18,7 @@ static void hij_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   char readbuf[SRV_READBUF_SIZE];
   int nread = read(sd, readbuf, sizeof(readbuf));
   if (nread < 0) {
-    lge("httpread failed: %s", strerror(errno));
+    lge("httpread failed: %s\n", strerror(errno));
     goto bad;
   } else if (nread == 0) {
     goto end;

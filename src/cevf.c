@@ -55,38 +55,111 @@
 #define CEVF_DATA_MQ_SZ 10
 #define CEVF_TIMEOUT_HP_SZ 10
 
+static inline cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
+  switch (typ) {
+    case qmsg2_res_ok:
+      return cevf_qmsg2_res_ok;
+    case qmsg2_res_timeout:
+      return cevf_qmsg2_res_timeout;
+    case qmsg2_res_softblocked:
+      return cevf_qmsg2_res_softblocked;
+    case qmsg2_res_interrupt:
+      return cevf_qmsg2_res_interrupt;
+    case qmsg2_res_error:
+      return cevf_qmsg2_res_error;
+    default:
+      return cevf_qmsg2_res_error;
+  }
+}
+
 static struct qmsg2_s *data_mq = NULL;
 
 struct _data_s {
   cevf_evtyp_t evtyp;
   size_t datalen;
   uint8_t *data;
+  uint8_t need_freed;
 };
+
+static inline struct _data_s *new_data_s(cevf_evtyp_t evtyp, uint8_t *data, size_t datalen, uint8_t copy) {
+  struct _data_s *ans = (struct _data_s *)malloc(sizeof(struct _data_s));
+  if (ans == NULL) return NULL;
+  ans->evtyp = evtyp;
+  if (copy) {
+    ans->data = (uint8_t *)malloc(datalen);
+    if (ans->data == NULL) goto fail;
+    ans->need_freed = 1;
+  } else {
+    ans->data = data;
+    ans->need_freed = 0;
+  }
+  ans->datalen = datalen;
+  return ans;
+fail:
+  free(ans);
+  return NULL;
+}
+
+static inline void delete_data_s(struct _data_s *d) {
+  if (d == NULL) return;
+  free(d);
+}
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1);
 
-int cevf_generic_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
-  int ret;
-  struct _data_s *d;
-  if (data_mq == NULL) return -1;
-  d = (struct _data_s *)malloc(sizeof(struct _data_s));
-  d->evtyp = evtyp;
-  d->data = data;
-  d->datalen = datalen;
+static inline cevf_qmsg2_res_t _cevf_evq_enqueue(struct _data_s *d, cevf_evtyp_t evtyp) {
+  qmsg2_res_t ret;
+  if (data_mq == NULL) return cevf_qmsg2_res_error;
   if (ev_is_running(CEVF_EV_THFNAME(cevf_generic_consumer_loopf))) {
-    if (ret = qmsg2_enq(data_mq, (void *)d) < 0) {
-      free(d);
-    }
+    ret = qmsg2_enq(data_mq, (void *)d);
   } else {
-    if (ret = qmsg2_enq_soft(data_mq, (void *)d) < 0) {
-      free(d);
-    }
+    ret = qmsg2_enq_soft(data_mq, (void *)d);
   }
 
-  return ret;
+  return conv_qmsgres_res2(ret);
 }
 
-static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp) {
+static inline cevf_qmsg2_res_t _cevf_evq_enqueue_soft(struct _data_s *d, cevf_evtyp_t evtyp) {
+  qmsg2_res_t ret;
+  if (data_mq == NULL) return cevf_qmsg2_res_error;
+  ret = qmsg2_enq_soft(data_mq, (void *)d);
+  return conv_qmsgres_res2(ret);
+}
+
+cevf_qmsg2_res_t cevf_generic_enqueue(void *data, size_t datalen, cevf_evtyp_t evtyp) {
+  struct _data_s *d = new_data_s(evtyp, data, datalen, 0);
+  if (d == NULL) return cevf_qmsg2_res_error;
+  cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
+  if (res != cevf_qmsg2_res_ok)
+    delete_data_s(d);
+  return conv_qmsgres_res2(res);
+}
+
+cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, size_t datalen, cevf_evtyp_t evtyp) {
+  struct _data_s *d = new_data_s(evtyp, data, datalen, 0);
+  cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
+  if (res != cevf_qmsg2_res_ok)
+    delete_data_s(d);
+  return conv_qmsgres_res2(res);
+}
+
+cevf_qmsg2_res_t cevf_copy_enqueue(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+  struct _data_s *d = new_data_s(evtyp, data, datalen, 1);
+  cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
+  if (res != cevf_qmsg2_res_ok)
+    delete_data_s(d);
+  return conv_qmsgres_res2(res);
+}
+
+cevf_qmsg2_res_t cevf_copy_enqueue_soft(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+  struct _data_s *d = new_data_s(evtyp, data, datalen, 1);
+  cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
+  if (res != cevf_qmsg2_res_ok)
+    delete_data_s(d);
+  return conv_qmsgres_res2(res);
+}
+
+static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp, uint8_t *need_freed) {
   size_t datalen;
   void *msg = NULL;
   if (data_mq == NULL) return -1;
@@ -95,8 +168,9 @@ static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp) {
   struct _data_s *d = (struct _data_s *)msg;
   *evtyp = d->evtyp;
   *data = d->data;
+  *need_freed = d->need_freed;
   datalen = d->datalen;
-  free(d);
+  delete_data_s(d);
   return datalen;
 }
 
@@ -125,12 +199,14 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   int ret = 0;
   uint8_t *data;
   ssize_t datalen;
+  uint8_t need_freed;
   cevf_evtyp_t evtyp;
   for (;;) {
-    datalen = cevf_generic_dequeue(&data, &evtyp);
+    datalen = cevf_generic_dequeue(&data, &evtyp, &need_freed);
     if (-1 == datalen) return NULL;
     if (evtyp == CEVF_RESERVED_EV_THEND) break;
     if (ret = ev_handle2(arg1, data, datalen, evtyp)) break;
+    if (need_freed) free(data);
   }
   ev_setret(arg1, ret);
   return NULL;
@@ -182,26 +258,11 @@ int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
 
 /////////////////////////
 
-static cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
-  switch (typ) {
-    case qmsg2_res_ok:
-      return cevf_qmsg2_res_ok;
-    case qmsg2_res_timeout:
-      return cevf_qmsg2_res_timeout;
-    case qmsg2_res_interrupt:
-      return cevf_qmsg2_res_interrupt;
-    case qmsg2_res_error:
-      return cevf_qmsg2_res_error;
-    default:
-      return cevf_qmsg2_res_error;
-  }
-}
-
 cevf_mq_t cevf_qmsg_new_mq(size_t sz) { return (cevf_mq_t)qmsg2_new_mq(sz); }
 
 int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
-  if (mt == NULL) return -1;
-  return qmsg2_enq((struct qmsg2_s *)mt, item);
+  if (mt == NULL) return cevf_qmsg2_res_error;
+  return conv_qmsgres_res2(qmsg2_enq((struct qmsg2_s *)mt, item));
 }
 
 cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf) { return conv_qmsgres_res2(qmsg2_deq((struct qmsg2_s *)mt, buf)); }
