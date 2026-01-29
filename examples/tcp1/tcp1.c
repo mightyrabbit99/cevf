@@ -7,10 +7,6 @@
 
 #define lge(...) fprintf(stderr, __VA_ARGS__)
 
-enum _evtyp {
-  evt_a1_toreply,
-};
-
 static void fd_close_handle(int fd) {
   if (fd < 0) return;
   cevf_unregister_sock(fd, CEVF_SOCKEVENT_TYPE_READ);
@@ -115,32 +111,6 @@ fail:
   return NULL;
 }
 
-#define WRITEBUF_SZ 15
-
-static int a1_reply_handle(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
-  int ret = 0;
-  ssize_t result;
-  struct sock_toreply_s *rpy = (struct sock_toreply_s *)data;
-  struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)rpy->ctx;
-  char writebuf[WRITEBUF_SZ];
-  size_t writesz;
-  if (rpy->rcvdata_len >= 5 && memcmp(rpy->rcvdata, "hello", 5) == 0)
-    memcpy(writebuf, "world\n", writesz = 6);
-  else
-    memcpy(writebuf, "fuck you\n", writesz = 9);
-
-  result = write(rpy->sd, writebuf, writesz);
-  if (result < 0) {
-    if (errno == EAGAIN) goto end;
-    ret = -1;
-    goto end;
-  }
-
-end:
-  delete_sock_toreply_s(rpy);
-  return ret;
-}
-
 static struct srv_ctx_s *srv = NULL;
 
 static int root_init_1(int argc, char *argv[]) {
@@ -155,7 +125,6 @@ static void root_deinit_1(void) {
 
 static void mod_pre_init(void) {
   cevf_mod_add_initialiser(0, root_init_1, root_deinit_1);
-  cevf_mod_add_consumer(evt_a1_toreply, a1_reply_handle);
 }
 
 cevf_mod_init(mod_pre_init)

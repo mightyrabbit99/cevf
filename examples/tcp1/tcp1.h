@@ -1,5 +1,12 @@
 #ifndef TCP1_H
 #define TCP1_H
+
+#include <string.h>
+
+enum _evtyp {
+  evt_a1_toreply,
+};
+
 struct sock_toreply_s {
   int sd;
   char *rcvdata;
