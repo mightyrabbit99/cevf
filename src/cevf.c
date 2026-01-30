@@ -119,7 +119,7 @@ static inline void delete_data_s(struct _data_s *d) {
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1);
 
-static inline cevf_qmsg2_res_t _cevf_evq_enqueue(struct _data_s *d, cevf_evtyp_t evtyp) {
+static cevf_qmsg2_res_t _cevf_evq_enqueue(struct _data_s *d, cevf_evtyp_t evtyp) {
   qmsg2_res_t ret;
   if (data_mq == NULL) return cevf_qmsg2_res_error;
   if (ev_is_running(CEVF_EV_THFNAME(cevf_generic_consumer_loopf))) {
@@ -131,29 +131,32 @@ static inline cevf_qmsg2_res_t _cevf_evq_enqueue(struct _data_s *d, cevf_evtyp_t
   return conv_qmsgres_res2(ret);
 }
 
-static inline cevf_qmsg2_res_t _cevf_evq_enqueue_soft(struct _data_s *d, cevf_evtyp_t evtyp) {
+static cevf_qmsg2_res_t _cevf_evq_enqueue_soft(struct _data_s *d, cevf_evtyp_t evtyp) {
   qmsg2_res_t ret;
   if (data_mq == NULL) return cevf_qmsg2_res_error;
   ret = qmsg2_enq_soft(data_mq, (void *)d);
   return conv_qmsgres_res2(ret);
 }
 
-cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp) {
+static inline cevf_qmsg2_res_t _cevf_generic_enq(void *data, cevf_evtyp_t evtyp, cevf_qmsg2_res_t (*f)(struct _data_s *d, cevf_evtyp_t evtyp)) {
   struct _data_s *d = new_data_s(evtyp, data, 0);
   if (d == NULL) return cevf_qmsg2_res_error;
-  cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
+  cevf_qmsg2_res_t res = f(d, evtyp);
   if (res != cevf_qmsg2_res_ok) delete_data_s(d);
   return conv_qmsgres_res2(res);
+}
+
+cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp) {
+  if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  return _cevf_generic_enq(data, evtyp, _cevf_evq_enqueue);
 }
 
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, 0);
-  cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
-  if (res != cevf_qmsg2_res_ok) delete_data_s(d);
-  return conv_qmsgres_res2(res);
+  if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  return _cevf_generic_enq(data, evtyp, _cevf_evq_enqueue_soft);
 }
 
-cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+static inline cevf_qmsg2_res_t _cevf_copy_enq(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, cevf_qmsg2_res_t (*f)(struct _data_s *d, cevf_evtyp_t evtyp)) {
   struct _data_s *d = NULL;
   uint8_t *data2 = NULL;
   cevf_qmsg2_res_t res = cevf_qmsg2_res_error;
@@ -170,21 +173,14 @@ fail:
   return res;
 }
 
+cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+  if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  return _cevf_copy_enq(data, datalen, evtyp, _cevf_evq_enqueue);
+}
+
 cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = NULL;
-  uint8_t *data2 = NULL;
-  cevf_qmsg2_res_t res = cevf_qmsg2_res_error;
-  d = new_data_s(evtyp, NULL, 0);
-  if (d == NULL) goto fail;
-  data2 = _copy_data(d, data, datalen);
-  if (data2 == NULL) goto fail;
-  res = _cevf_evq_enqueue_soft(d, evtyp);
-  if (res != cevf_qmsg2_res_ok) goto fail;
-  return conv_qmsgres_res2(res);
-fail:
-  if (d) delete_data_s(d);
-  if (data2) free(data2);
-  return res;
+  if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  return _cevf_copy_enq(data, datalen, evtyp, _cevf_evq_enqueue_soft);
 }
 
 static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp, uint8_t *need_freed) {
@@ -237,7 +233,22 @@ struct _cevf_consumer_fbox_s {
   cvector_vector_type(cevf_consumer_handler_t2_t) handler_t2_arr;
 };
 
-static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { cevf_generic_enqueue(NULL, CEVF_RESERVED_EV_THEND); }
+static inline int _handle_event(hashmap *m_evtyp_handler, uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, cevf_evtyp_t evtyp2, uint8_t need_freed) {
+  struct _cevf_consumer_fbox_s *fbox;
+  if (!hashmap_get(m_evtyp_handler, &evtyp, sizeof(evtyp), (uintptr_t *)&fbox)) {
+    if (evtyp != CEVF_RESERVED_EV_THEND) {
+      lge("No handler for evtyp=%d!\n", evtyp);
+    }
+    return 0;
+  }
+  struct _handle_ev_farr_s ctx2 = (struct _handle_ev_farr_s){
+      .typ = need_freed ? cevf_consumer_typ_t2 : cevf_consumer_typ_t1,
+      .handler_arr = need_freed ? (void *)fbox->handler_t2_arr : (void *)fbox->handler_t1_arr,
+  };
+  return cevf_handle_event_1(data, datalen, evtyp2, &ctx2);
+}
+
+static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { _cevf_generic_enq(NULL, CEVF_RESERVED_EV_THEND, _cevf_evq_enqueue); }
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   ev_asserthandlrf(arg1, cevf_handle_event_1);
@@ -251,16 +262,10 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
     if (-1 == datalen) return NULL;
     if (evtyp == CEVF_RESERVED_EV_THEND) break;
     hashmap *m_evtyp_handler = (hashmap *)ev_getcontext(arg1);
-    struct _cevf_consumer_fbox_s *fbox;
-    if (!hashmap_get(m_evtyp_handler, &evtyp, sizeof(evtyp), (uintptr_t *)&fbox)) {
-      lge("No handler for evtyp=%d!\n", evtyp);
-      continue;
-    }
-    struct _handle_ev_farr_s ctx2 = (struct _handle_ev_farr_s){
-        .typ = need_freed ? cevf_consumer_typ_t2 : cevf_consumer_typ_t1,
-        .handler_arr = need_freed ? (void *)fbox->handler_t2_arr : (void *)fbox->handler_t1_arr,
-    };
-    ret = ev_handle3(arg1, data, datalen, evtyp, &ctx2);
+    ret = _handle_event(m_evtyp_handler, data, datalen, evtyp, evtyp, need_freed);
+    if (ret) break;
+    // global event handler
+    ret = _handle_event(m_evtyp_handler, data, datalen, CEVF_RESERVED_EV_THEND, evtyp, need_freed);
     if (ret) break;
     if (need_freed) free(data);
     need_freed = 0;
@@ -293,7 +298,7 @@ static hashmap *compile_m_evtyp_handler(struct cevf_consumer_t1_s *cm_t1_arr, ce
 }
 
 static void _delete_m_evtyp_handler_it(void *key, size_t ksize, uintptr_t value, void *usr) {
-  cvector_vector_type(struct _cevf_consumer_fbox_s) fbox = (cvector_vector_type(struct _cevf_consumer_fbox_s))value;
+  struct _cevf_consumer_fbox_s *fbox = (struct _cevf_consumer_fbox_s *)value;
   cvector_free(fbox->handler_t1_arr);
   cvector_free(fbox->handler_t2_arr);
   free(fbox);

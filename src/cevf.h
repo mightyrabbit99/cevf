@@ -38,10 +38,10 @@ typedef void (*cevf_signal_handler)(int sig);
 #define CEVF_PASTER(x, y) x##_##y
 #define CEVF_CONCAT(x, y) CEVF_PASTER(x, y)
 
-#ifndef CEVF_EVTYP
-#define CEVF_EVTYP uint8_t
-#endif  // CEVF_EVTYP
-typedef CEVF_EVTYP cevf_evtyp_t;
+#ifndef CEVF_EV_DTYP
+#define CEVF_EV_DTYP uint16_t
+#endif  // CEVF_EV_DTYP
+typedef CEVF_EV_DTYP cevf_evtyp_t;
 typedef uint16_t cevf_asz_t;
 typedef void *cevf_mq_t;
 typedef uint8_t cevf_producer_id_t;

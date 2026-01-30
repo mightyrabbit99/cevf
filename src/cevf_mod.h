@@ -89,6 +89,7 @@ static void **_cevf_tmp_submod_p;
       exit(1);                                                                                                       \
     }                                                                                                                \
   } while (0)
+#define cevf_mod_add_consumer_t1_global(_handler) cevf_mod_add_consumer_t1(CEVF_RESERVED_EV_THEND, _handler)
 #define cevf_mod_add_consumer_t2(_ev_typ, _handler)                                                                  \
   do {                                                                                                               \
     struct cevf_consumer_t2_s item__ = (struct cevf_consumer_t2_s){                                                  \
@@ -101,6 +102,7 @@ static void **_cevf_tmp_submod_p;
       exit(1);                                                                                                       \
     }                                                                                                                \
   } while (0)
+#define cevf_mod_add_consumer_t2_global(_handler) cevf_mod_add_consumer_t2(CEVF_RESERVED_EV_THEND, _handler)
 #ifdef CEVF_ALLOW_LOAD_SUBMOD
 #define cevf_mod_add_submod(modfile)                                                              \
   do {                                                                                            \
@@ -127,13 +129,13 @@ static void __attribute__((destructor)) _cevf_mod_deinit(void) {
 #endif  // CEVF_ALLOW_LOAD_SUBMOD
 #define cevf_is_static() (_cevf_is_static_linked == 1)
 
-#ifdef CEVF_ALLOW_LOAD_SUBMOD
+#ifdef CEVF_STATIC_INIT
 #define cevf_mod_init(function)                                                                               \
   __attribute__((section(".init_array"))) static void *_cevf_mod_init_##function = &cevf_mod_init_##function; \
   static void cevf_mod_init_##function(int argc, char *argv[]) { function(argc, argv); }
-#else  // CEVF_ALLOW_LOAD_SUBMOD
+#else  // CEVF_STATIC_INIT
 #define cevf_mod_init(function) \
   static void __attribute__((constructor)) cevf_mod_init_##function(void) { function(); }
-#endif  // CEVF_ALLOW_LOAD_SUBMOD
+#endif  // CEVF_STATIC_INIT
 
 #endif  // CEVF_MOD_H

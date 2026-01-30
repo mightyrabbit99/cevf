@@ -22,7 +22,7 @@ typedef void (*cevf_thendf_t)(void *context);
 #define CEVF_EV_THENDDECL(fname, argname) void CEVF_EV_THENDNAME(fname)(void *argname)
 
 #ifndef CEVF_EV_DTYP
-#define CEVF_EV_DTYP uint8_t
+#define CEVF_EV_DTYP uint16_t
 #endif // CEVF_EV_DTYP
 
 typedef uint8_t thtyp_t;
