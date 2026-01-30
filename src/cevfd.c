@@ -1,18 +1,21 @@
-#include "cevf_main.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "cevf_main.h"
+
+#ifndef CEVF_STATIC_LIB
 #include <dlfcn.h>
-#include <stdint.h>
+
 #include "cvector.h"
 #include "cvector_utils.h"
+#endif  // CEVF_STATIC_LIB
 
 #ifndef CEVF_CM_THR_CNT
 #define CEVF_CM_THR_CNT 2
-#endif // CEVF_CM_THR_CNT
+#endif  // CEVF_CM_THR_CNT
 
-static void _process_terminate(int sig) {
-  cevf_terminate();
-}
+static void _process_terminate(int sig) { cevf_terminate(); }
 
 int main(int argc, char *argv[]) {
   char *env_str;
@@ -41,7 +44,7 @@ int main(int argc, char *argv[]) {
     }
     free(env_str2);
   }
-#endif // CEVF_STATIC_LIB
+#endif  // CEVF_STATIC_LIB
 
   cevf_register_signal_terminate(_process_terminate, NULL);
   if (cevf_init()) return -1;
@@ -51,6 +54,6 @@ int main(int argc, char *argv[]) {
 #ifndef CEVF_STATIC_LIB
   cvector_for_each(mods, dlclose);
   cvector_free(mods);
-#endif // CEVF_STATIC_LIB
+#endif  // CEVF_STATIC_LIB
   return res;
 }
