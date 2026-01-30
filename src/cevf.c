@@ -138,16 +138,16 @@ static inline cevf_qmsg2_res_t _cevf_evq_enqueue_soft(struct _data_s *d, cevf_ev
   return conv_qmsgres_res2(ret);
 }
 
-cevf_qmsg2_res_t cevf_generic_enqueue(void *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, datalen);
+cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp) {
+  struct _data_s *d = new_data_s(evtyp, data, 0);
   if (d == NULL) return cevf_qmsg2_res_error;
   cevf_qmsg2_res_t res = _cevf_evq_enqueue(d, evtyp);
   if (res != cevf_qmsg2_res_ok) delete_data_s(d);
   return conv_qmsgres_res2(res);
 }
 
-cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, size_t datalen, cevf_evtyp_t evtyp) {
-  struct _data_s *d = new_data_s(evtyp, data, datalen);
+cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, cevf_evtyp_t evtyp) {
+  struct _data_s *d = new_data_s(evtyp, data, 0);
   cevf_qmsg2_res_t res = _cevf_evq_enqueue_soft(d, evtyp);
   if (res != cevf_qmsg2_res_ok) delete_data_s(d);
   return conv_qmsgres_res2(res);
@@ -202,25 +202,42 @@ static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp, uint8_t
   return datalen;
 }
 
-static int cevf_generic_enqueue_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) { return cevf_generic_enqueue(data, datalen, evtyp); }
+static int cevf_generic_enqueue_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) { return cevf_generic_enqueue(data, evtyp); }
+
+struct _handle_ev_farr_s {
+  cevf_consumer_typ_t typ;
+  void *handler_arr;
+};
+
+#define _cevf_exec_f(ftyp, farr, res, evtyp, ...)                                           \
+  do {                                                                                      \
+    cvector_vector_type(ftyp) handler_arr__ = (cvector_vector_type(ftyp))farr->handler_arr; \
+    ftyp *f__;                                                                              \
+    if (cvector_empty(handler_arr__)) {                                                     \
+      lge("No handler for evtyp=%d!\n", evtyp);                                             \
+    }                                                                                       \
+    cvector_for_each_in(f__, handler_arr__) {                                               \
+      if (res = (*f__)(__VA_ARGS__) < 0) break;                                             \
+    }                                                                                       \
+  } while (0)
 
 static int cevf_handle_event_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) {
-  hashmap *m_evtyp_handler = (hashmap *)context;
-  cvector_vector_type(cevf_consumer_handler_t) handler_arr = NULL;
-  if (!hashmap_get(m_evtyp_handler, &evtyp, sizeof(evtyp), (uintptr_t *)&handler_arr)) {
-    lge("No handler for evtyp=%d!\n", evtyp);
-    return -1;
-  }
-
+  struct _handle_ev_farr_s *farr = (struct _handle_ev_farr_s *)context;
   int res = 0;
-  cevf_consumer_handler_t *f;
-  cvector_for_each_in(f, handler_arr) {
-    if (res = (*f)(data, datalen, evtyp) < 0) break;
+  if (farr->typ == cevf_consumer_typ_t1) {
+    _cevf_exec_f(cevf_consumer_handler_t1_t, farr, res, evtyp, data, evtyp);
+  } else {
+    _cevf_exec_f(cevf_consumer_handler_t2_t, farr, res, evtyp, data, datalen, evtyp);
   }
   return res;
 }
 
-static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { cevf_generic_enqueue(NULL, 0, CEVF_RESERVED_EV_THEND); }
+struct _cevf_consumer_fbox_s {
+  cvector_vector_type(cevf_consumer_handler_t1_t) handler_t1_arr;
+  cvector_vector_type(cevf_consumer_handler_t2_t) handler_t2_arr;
+};
+
+static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { cevf_generic_enqueue(NULL, CEVF_RESERVED_EV_THEND); }
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   ev_asserthandlrf(arg1, cevf_handle_event_1);
@@ -233,7 +250,18 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
     datalen = cevf_generic_dequeue(&data, &evtyp, &need_freed);
     if (-1 == datalen) return NULL;
     if (evtyp == CEVF_RESERVED_EV_THEND) break;
-    if (ret = ev_handle2(arg1, data, datalen, evtyp)) break;
+    hashmap *m_evtyp_handler = (hashmap *)ev_getcontext(arg1);
+    struct _cevf_consumer_fbox_s *fbox;
+    if (!hashmap_get(m_evtyp_handler, &evtyp, sizeof(evtyp), (uintptr_t *)&fbox)) {
+      lge("No handler for evtyp=%d!\n", evtyp);
+      continue;
+    }
+    struct _handle_ev_farr_s ctx2 = (struct _handle_ev_farr_s){
+        .typ = need_freed ? cevf_consumer_typ_t2 : cevf_consumer_typ_t1,
+        .handler_arr = need_freed ? (void *)fbox->handler_t2_arr : (void *)fbox->handler_t1_arr,
+    };
+    ret = ev_handle3(arg1, data, datalen, evtyp, &ctx2);
+    if (ret) break;
     if (need_freed) free(data);
     need_freed = 0;
   }
@@ -242,24 +270,33 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   return NULL;
 }
 
-static hashmap *compile_m_evtyp_handler(struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num) {
+#define _compile_handler(m_evtyp_handler, fbox, fbox_arr_name, cm_arr, cm_num)                            \
+  do {                                                                                                    \
+    for (cevf_asz_t i = 0; i < cm_num; i++) {                                                             \
+      if (!hashmap_get(m_evtyp_handler, &cm_arr[i].evtyp, sizeof(cm_arr[i].evtyp), (uintptr_t *)&fbox)) { \
+        fbox = (struct _cevf_consumer_fbox_s *)malloc(sizeof(struct _cevf_consumer_fbox_s));              \
+        *fbox = (struct _cevf_consumer_fbox_s){0};                                                        \
+        hashmap_set(m_evtyp_handler, &cm_arr[i].evtyp, sizeof(cm_arr[i].evtyp), (uintptr_t)fbox);         \
+      }                                                                                                   \
+      cvector_push_back(fbox->fbox_arr_name, cm_arr[i].handler);                                          \
+    }                                                                                                     \
+  } while (0)
+
+static hashmap *compile_m_evtyp_handler(struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num) {
   hashmap *m_evtyp_handler = hashmap_create();
   if (m_evtyp_handler == NULL) return NULL;
   cevf_asz_t i;
-  cvector_vector_type(cevf_consumer_handler_t) handler_arr = NULL;
-  for (i = 0; i < cm_num; i++) {
-    if (!hashmap_get(m_evtyp_handler, &cm_arr[i].evtyp, sizeof(cm_arr[i].evtyp), (uintptr_t *)&handler_arr)) {
-      handler_arr = NULL;
-    }
-    cvector_push_back(handler_arr, cm_arr[i].handler);
-    hashmap_set(m_evtyp_handler, &cm_arr[i].evtyp, sizeof(cm_arr[i].evtyp), (uintptr_t)handler_arr);
-  }
+  struct _cevf_consumer_fbox_s *fbox;
+  _compile_handler(m_evtyp_handler, fbox, handler_t1_arr, cm_t1_arr, cm_t1_num);
+  _compile_handler(m_evtyp_handler, fbox, handler_t2_arr, cm_t2_arr, cm_t2_num);
   return m_evtyp_handler;
 }
 
 static void _delete_m_evtyp_handler_it(void *key, size_t ksize, uintptr_t value, void *usr) {
-  cvector_vector_type(cevf_consumer_handler_t) handler_arr = (cvector_vector_type(cevf_consumer_handler_t))value;
-  cvector_free(handler_arr);
+  cvector_vector_type(struct _cevf_consumer_fbox_s) fbox = (cvector_vector_type(struct _cevf_consumer_fbox_s))value;
+  cvector_free(fbox->handler_t1_arr);
+  cvector_free(fbox->handler_t2_arr);
+  free(fbox);
 }
 
 static void delete_m_evtyp_handler(hashmap *m_evtyp_handler) {
@@ -836,7 +873,7 @@ static struct thpillar_s cevf_pillars[] = {{
                                                .handler = cevf_handle_event_1,
                                            }};
 
-static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt, hashmap *m_evtyp_handler) {
+static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, hashmap *m_evtyp_handler, uint8_t cm_thr_cnt) {
   struct thprop_s props[pd_num + cm_thr_cnt + 1];
   cevf_asz_t props_len = 0;
   for (cevf_asz_t i = 0; i < cm_thr_cnt; i++) {
@@ -913,9 +950,9 @@ int cevf_init(void) {
 }
 
 int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num,
-             struct cevf_consumer_s *cm_arr, cevf_asz_t cm_num, uint8_t cm_thr_cnt) {
+             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt) {
   int ret = 0;
-  hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_arr, cm_num);
+  hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_t1_arr, cm_t1_num, cm_t2_arr, cm_t2_num);
   if (m_evtyp_handler == NULL) goto fail;
 
   ctrl_mq = qmsg2_new_mq(CEVF_CTRL_MQ_SZ);
@@ -926,7 +963,7 @@ int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI
 
   if (ret = cevf_run_initialisers(argc, argv, ini_arr, ini_num)) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
-  struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, cm_arr, cm_num, cm_thr_cnt, m_evtyp_handler);
+  struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, m_evtyp_handler, cm_thr_cnt);
   if (cevf_register_sock_cnt > 0)
     eloop_run();
   else

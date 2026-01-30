@@ -26,7 +26,7 @@ static void hij_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   } else {
     struct sock_toreply_s *rpy = new_sock_toreply_s(readbuf, nread, sd, srvconn);
     if (rpy == NULL) return;
-    cevf_generic_enqueue((void *)rpy, sizeof(struct sock_toreply_s), evt_a1_toreply);
+    cevf_generic_enqueue((void *)rpy, evt_a1_toreply);
   }
   return;
 

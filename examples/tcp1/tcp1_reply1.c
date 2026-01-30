@@ -9,7 +9,7 @@
 
 #define WRITEBUF_SZ 15
 
-static int a1_reply_handle(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
+static int a1_reply_handle(void *data, cevf_evtyp_t evtyp) {
   int ret = 0;
   ssize_t result;
   struct sock_toreply_s *rpy = (struct sock_toreply_s *)data;
@@ -34,7 +34,7 @@ end:
 }
 
 static void mod_reply1_init(void) {
-  cevf_mod_add_consumer(evt_a1_toreply, a1_reply_handle);
+  cevf_mod_add_consumer_t1(evt_a1_toreply, a1_reply_handle);
 }
 
 cevf_mod_init(mod_reply1_init)

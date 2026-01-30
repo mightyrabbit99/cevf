@@ -13,7 +13,7 @@
 typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
 
-#define CEVF_EV_PASTER(x, y) x ## _ ## y
+#define CEVF_EV_PASTER(x, y) x##_##y
 #define CEVF_EV_CONCAT(x, y) CEVF_EV_PASTER(x,y)
 
 #define CEVF_EV_THFNAME(fname) CEVF_EV_CONCAT(fname, th)
@@ -60,10 +60,12 @@ void ev_deinit(void);
 struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len);
 int ev_is_running(cevf_thfunc_t thstart);
 int ev_join(struct thstat_s *thstat);
-#define ev_handle2(argname, data, datalen, evtyp) ((struct tharg_s *)argname)->handler(data, datalen, evtyp, ((struct tharg_s *)argname)->context)
+#define ev_handle3(argname, data, datalen, evtyp, ctx) ((struct tharg_s *)argname)->handler(data, datalen, evtyp, ctx)
+#define ev_handle2(argname, data, datalen, evtyp) ev_handle3(argname, data, datalen, evtyp, ((struct tharg_s *)argname)->context)
 #define ev_handle(argname, data, datalen) ev_handle2(argname, data, datalen, ((struct tharg_s *)argname)->evtyp)
 #define ev_setret(argname, _ret) (((struct tharg_s *)argname)->ret = _ret)
 #define ev_gethandl(argname) (((struct tharg_s *)argname)->handler)
+#define ev_getcontext(argname) (((struct tharg_s *)argname)->context)
 #define ev_asserthandlrf(argname, f) assert(ev_gethandl(argname) == f)
 
 #endif // CEVF_EV_H
