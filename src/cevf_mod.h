@@ -20,6 +20,7 @@ extern struct cevf_producer_s *_cevf_pd_arr;
 extern cevf_asz_t _cevf_pd_arr_sz;
 extern struct cevf_consumer_s *_cevf_cm_arr;
 extern cevf_asz_t _cevf_cm_arr_sz;
+extern uint8_t _cevf_is_static_linked;
 
 static struct cevf_initialiser_s *_cevf_tmp_ini_p;
 static struct cevf_producer_s *_cevf_tmp_pd_p;
@@ -155,6 +156,7 @@ static void __attribute__((destructor)) _cevf_mod_deinit(void) {
   _cevf_submod_arr_sz = 0;
 }
 #endif  // CEVF_ALLOW_LOAD_SUBMOD
+#define cevf_is_static() (_cevf_is_static_linked == 1)
 
 #ifdef CEVF_ALLOW_LOAD_SUBMOD
 #define cevf_mod_init(function)                                                                               \
