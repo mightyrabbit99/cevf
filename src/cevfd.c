@@ -25,12 +25,12 @@ int main(int argc, char *argv[]) {
       cm_thr_cnt = CEVF_CM_THR_CNT;
     }
   }
+#ifndef CEVF_STATIC_LIB
   env_str = getenv("CEVF_MODS");
-  char *p = NULL;
   cvector_vector_type(void *) mods = NULL;
   if (env_str) {
-    p = strdup(env_str);
-    char *p2 = p, *token;
+    char *env_str2 = strdup(env_str);
+    char *p2 = env_str2, *token;
     while ((token = strsep(&p2, ":")) != NULL) {
       void *a = dlopen(token, RTLD_LAZY | RTLD_DEEPBIND);
       if (a == NULL) {
@@ -39,15 +39,18 @@ int main(int argc, char *argv[]) {
       }
       cvector_push_back(mods, a);
     }
+    free(env_str2);
   }
+#endif // CEVF_STATIC_LIB
 
   cevf_register_signal_terminate(_process_terminate, NULL);
   if (cevf_init()) return -1;
   int res = cevf_start(argc, argv, cm_thr_cnt);
   cevf_deinit();
 
+#ifndef CEVF_STATIC_LIB
   cvector_for_each(mods, dlclose);
   cvector_free(mods);
-  free(p);
+#endif // CEVF_STATIC_LIB
   return res;
 }

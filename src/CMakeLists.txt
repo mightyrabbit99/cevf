@@ -32,12 +32,14 @@ install(TARGETS cevf
 )
 
 add_library(cevf-static STATIC)
+target_compile_options(cevf-static PRIVATE -DCEVF_STATIC_LIB)
 set_target_properties(cevf-static PROPERTIES OUTPUT_NAME "cevf")
 set_target_properties(cevf-static PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 target_sources(cevf-static
   PRIVATE
     cevf.c
     cevf_ev.c
+    cevfd.c
     utils/qmsg2.c
     utils/timespec.c
     utils/heap.c

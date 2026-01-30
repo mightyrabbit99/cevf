@@ -10,6 +10,9 @@
 #include <cevf.h>
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef CEVF_ALLOW_LOAD_SUBMOD
+#include <dlfcn.h>
+#endif  // CEVF_ALLOW_LOAD_SUBMOD
 
 extern struct cevf_initialiser_s *_cevf_ini_arr[CEVF_INI_PRIO_MAX];
 extern cevf_asz_t _cevf_ini_arr_sz[CEVF_INI_PRIO_MAX];
@@ -22,6 +25,12 @@ static struct cevf_initialiser_s *_cevf_tmp_ini_p;
 static struct cevf_producer_s *_cevf_tmp_pd_p;
 static struct cevf_consumer_s *_cevf_tmp_cm_p;
 static int _cevf_ret = 0;
+
+#ifdef CEVF_ALLOW_LOAD_SUBMOD
+static void **_cevf_submod_arr = NULL;
+static cevf_asz_t _cevf_submod_arr_sz = 0;
+static void **_cevf_tmp_submod_p;
+#endif  // CEVF_ALLOW_LOAD_SUBMOD
 
 #define _cevf_mod_add_initialiser(prio, _init_f, _deinit_f)                                                                                        \
   do {                                                                                                                                             \
@@ -107,7 +116,53 @@ static int _cevf_ret = 0;
       exit(1);                                   \
     }                                            \
   } while (0)
+#ifdef CEVF_ALLOW_LOAD_SUBMOD
+#define _cevf_mod_add_submod(modp)                                                                       \
+  do {                                                                                                   \
+    _cevf_ret = 0;                                                                                       \
+    if (_cevf_submod_arr_sz == (cevf_asz_t) - 1) {                                                       \
+      _cevf_ret = -1;                                                                                    \
+      break;                                                                                             \
+    }                                                                                                    \
+    _cevf_tmp_submod_p = (void **)realloc(_cevf_submod_arr, (_cevf_submod_arr_sz + 1) * sizeof(void *)); \
+    if (_cevf_tmp_submod_p == NULL) {                                                                    \
+      _cevf_ret = -1;                                                                                    \
+      break;                                                                                             \
+    }                                                                                                    \
+    _cevf_submod_arr = _cevf_tmp_submod_p;                                                               \
+    _cevf_submod_arr[_cevf_submod_arr_sz++] = modp;                                                      \
+  } while (0)
+#define cevf_mod_add_submod(modfile)                          \
+  do {                                                        \
+    void *a__ = dlopen(modfile, RTLD_LAZY | RTLD_DEEPBIND);   \
+    if (a__ == NULL) {                                        \
+      fprintf(stderr, "Error loading cevf mod: %s\n", token); \
+      break;                                                  \
+    }                                                         \
+    _cevf_mod_add_submod(a__);                                \
+    if (_cevf_ret == -1) {                                    \
+      fprintf(stderr, "cevf submod error\n");                 \
+      exit(1);                                                \
+    }                                                         \
+  } while (0)
+static void __attribute__((destructor)) _cevf_mod_deinit(void) {
+  for (cevf_asz_t i = 0; i < _cevf_submod_arr_sz; i++) {
+    dlclose(_cevf_submod_arr[i]);
+    _cevf_submod_arr[i] = NULL;
+  }
+  free(_cevf_submod_arr);
+  _cevf_submod_arr = NULL;
+  _cevf_submod_arr_sz = 0;
+}
+#endif  // CEVF_ALLOW_LOAD_SUBMOD
+
+#ifdef CEVF_ALLOW_LOAD_SUBMOD
+#define cevf_mod_init(function)                                                                               \
+  __attribute__((section(".init_array"))) static void *_cevf_mod_init_##function = &cevf_mod_init_##function; \
+  static void cevf_mod_init_##function(int argc, char *argv[]) { function(argc, argv); }
+#else  // CEVF_ALLOW_LOAD_SUBMOD
 #define cevf_mod_init(function) \
   static void __attribute__((constructor)) cevf_mod_init_##function(void) { function(); }
+#endif  // CEVF_ALLOW_LOAD_SUBMOD
 
 #endif  // CEVF_MOD_H
