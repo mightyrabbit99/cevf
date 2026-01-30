@@ -72,6 +72,19 @@ static inline cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
   }
 }
 
+pthread_mutex_t log_mutex;
+static cevf_log_level_t log_level = cevf_log_level_error;
+static FILE *log_stream;
+
+void cevf_log_set(cevf_log_level_t level, FILE *stream) {
+  pthread_mutex_lock(&log_mutex);
+  log_level = level;
+  log_stream = stream;
+  pthread_mutex_unlock(&log_mutex);
+}
+
+///////////////////////////////
+
 static struct qmsg2_s *data_mq = NULL;
 
 struct _data_s {
@@ -887,6 +900,7 @@ static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_
 }
 
 int cevf_init(void) {
+  pthread_mutex_init(&log_mutex, NULL);
   qmsg2_init();
   if (_timeout_init()) return -1;
   data_mq = qmsg2_new_mq(CEVF_DATA_MQ_SZ);
@@ -937,4 +951,5 @@ void cevf_deinit(void) {
   qmsg2_del_mq(data_mq);
   _timeout_deinit();
   qmsg2_deinit();
+  pthread_mutex_destroy(&log_mutex);
 }

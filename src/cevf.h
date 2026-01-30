@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <stdio.h>
 
 typedef enum {
 	CEVF_SOCKEVENT_TYPE_READ,
@@ -23,6 +24,12 @@ typedef enum {
   cevf_qmsg2_res_interrupt,
   cevf_qmsg2_res_softblocked,
 } cevf_qmsg2_res_t;
+
+typedef enum {
+  cevf_log_level_error,
+  cevf_log_level_warning,
+  cevf_log_level_debug,
+} cevf_log_level_t;
 
 typedef void *(*cevf_thfunc_t)(void *tharg);
 typedef void (*cevf_thendf_t)(void *context);
@@ -90,6 +97,7 @@ int cevf_cancel_timeout(cevf_timeout_handler_t handler, void *ctx);
 int cevf_cancel_timeout_one(cevf_timeout_handler_t handler, void *ctx, struct timespec *remaining);
 int cevf_is_timeout_registered(cevf_timeout_handler_t handler, void *ctx);
 void cevf_terminate(void);
+void cevf_log_set(cevf_log_level_t level, FILE *stream);
 void cevf_deinit(void);
 
 #define CEVF_MON_INTERVAL 1
