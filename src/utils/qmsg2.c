@@ -69,7 +69,7 @@ void qmsg2_del_mq(struct qmsg2_s *mq) {
   _delete_qmsg2_s(mq);
 }
 
-int qmsg2_enq(struct qmsg2_s *mq, void *item) {
+qmsg2_res_t qmsg2_enq(struct qmsg2_s *mq, void *item) {
   if (mq == NULL) return qmsg2_res_error;
   if (sem_wait(&mq->empty)) {
     perror("sem_wait");
@@ -92,7 +92,7 @@ int qmsg2_enq(struct qmsg2_s *mq, void *item) {
     return qmsg2_res_error;
   }
 
-  return 0;
+  return qmsg2_res_ok;
 }
 
 ssize_t qmsg2_count(struct qmsg2_s *mq) {
@@ -115,7 +115,7 @@ ssize_t qmsg2_count(struct qmsg2_s *mq) {
   return ans;
 }
 
-int qmsg2_enq_soft(struct qmsg2_s *mq, void *item) {
+qmsg2_res_t qmsg2_enq_soft(struct qmsg2_s *mq, void *item) {
   if (mq == NULL) return qmsg2_res_error;
   if (sem_trywait(&mq->empty)) {
     if (errno == EAGAIN) return qmsg2_res_softblocked;
