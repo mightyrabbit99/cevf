@@ -85,7 +85,7 @@ static hashmap *m_thtyp_handler = NULL;
 static void *ev_generic_thread_f(void *arg);
 
 static hashmap *m_thfunc_cnt = NULL;
-pthread_mutex_t th_cnt_mutex;
+static pthread_mutex_t th_cnt_mutex;
 
 inline static int th_cnt_inc(cevf_thfunc_t thstart) {
   uintptr_t ans = 0;

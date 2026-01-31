@@ -21,6 +21,7 @@
 #define CEVF_LUA_MOD_EXECPCD_NAME "cevf_exec_procedure"
 
 static lua_State *L = NULL;
+static pthread_mutex_t L_mutex;
 
 static inline int _foreach_filenode(const char *path, int (*f)(const char *, void *), void *ctx) {
   int ret = 0;
@@ -68,6 +69,7 @@ static int _execpcd_f(lua_State *L) {
 }
 
 static inline int _exec_mainf_t1(lua_State *L, const char *modname, const uint8_t *data, size_t datalen) {
+  pthread_mutex_lock(&L_mutex);
   lua_getglobal(L, modname);
   if (!lua_istable(L, -1)) {
     lua_pop(L, 1);
@@ -86,10 +88,12 @@ static inline int _exec_mainf_t1(lua_State *L, const char *modname, const uint8_
   }
   int res = lua_tonumber(L, -1);
   lua_pop(L, 1);
+  pthread_mutex_unlock(&L_mutex);
   return res;
 }
 
 static inline char *_exec_mainf_t2(lua_State *L, const char *modname, const uint8_t *data, size_t datalen, size_t *outlen) {
+  pthread_mutex_lock(&L_mutex);
   lua_getglobal(L, modname);
   if (!lua_istable(L, -1)) {
     lua_pop(L, 1);
@@ -118,14 +122,15 @@ static inline char *_exec_mainf_t2(lua_State *L, const char *modname, const uint
   }
   memcpy(res, res2, *outlen);
   lua_pop(L, 1);
+  pthread_mutex_unlock(&L_mutex);
   return res;
 }
 
 
 static hashmap *m_evtyp_modnamelst = NULL;
-pthread_mutex_t m_evtyp_modnamelst_mutex;
+static pthread_mutex_t m_evtyp_modnamelst_mutex;
 static hashmap *m_pcdno_modname = NULL;
-pthread_mutex_t m_pcdno_modname_mutex;
+static pthread_mutex_t m_pcdno_modname_mutex;
 
 static char *luamac_generic_ctx = "luamac_generic_ctx";
 static uint8_t *luamac_generic_procedure_t2(const uint8_t *input, size_t input_len, size_t *output_len, void *ctx) {
@@ -292,6 +297,7 @@ static int luamac_init(int argc, char *argv[]) {
   env_str = getenv("CEVF_LUAMOD_PATH");
   if (env_str == NULL) return 0;
   L = luaL_newstate();
+  pthread_mutex_init(&L_mutex, NULL);
   luaL_openlibs(L);
   lua_pushcfunction(L, _enqueue_f);
   lua_setglobal(L, CEVF_LUA_MOD_ENQF_NAME);
@@ -307,6 +313,7 @@ static int luamac_init(int argc, char *argv[]) {
 
 static void luamac_deinit(void) {
   lua_close(L);
+  pthread_mutex_destroy(&L_mutex);
   delete_m_typ_modnamelst(m_evtyp_modnamelst);
   pthread_mutex_destroy(&m_evtyp_modnamelst_mutex);
   delete_m_typ_modname(m_pcdno_modname);

@@ -73,7 +73,7 @@ static inline cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
   }
 }
 
-pthread_mutex_t log_mutex;
+static pthread_mutex_t log_mutex;
 static cevf_log_level_t log_level = cevf_log_level_error;
 static FILE *log_stream;
 
@@ -321,9 +321,9 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
 int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
 
 static hashmap *m_pcdno_handler_t1 = NULL;
-pthread_mutex_t m_pcdno_handler_t1_mutex;
+static pthread_mutex_t m_pcdno_handler_t1_mutex;
 static hashmap *m_pcdno_handler_t2 = NULL;
-pthread_mutex_t m_pcdno_handler_t2_mutex;
+static pthread_mutex_t m_pcdno_handler_t2_mutex;
 
 static void _deinit_m_pcdno_handler_t1_it(void *key, size_t ksize, uintptr_t value, void *usr) {
   struct cevf_procedure_t1_s *s = (struct cevf_procedure_t1_s *)value;
