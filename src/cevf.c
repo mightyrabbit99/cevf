@@ -321,7 +321,9 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
 int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
 
 static hashmap *m_pcdno_handler_t1 = NULL;
+pthread_mutex_t m_pcdno_handler_t1_mutex;
 static hashmap *m_pcdno_handler_t2 = NULL;
+pthread_mutex_t m_pcdno_handler_t2_mutex;
 
 static void _deinit_m_pcdno_handler_t1_it(void *key, size_t ksize, uintptr_t value, void *usr) {
   struct cevf_procedure_t1_s *s = (struct cevf_procedure_t1_s *)value;
@@ -341,21 +343,28 @@ static inline void _deinit_m_pcdno_handler(hashmap *m_pcdno_handler, hashmap_cal
 
 static inline void cevf_init_m_pcdno_handler(void) {
   m_pcdno_handler_t1 = hashmap_create();
+  pthread_mutex_init(&m_pcdno_handler_t1_mutex, NULL);
   m_pcdno_handler_t2 = hashmap_create();
+  pthread_mutex_init(&m_pcdno_handler_t2_mutex, NULL);
 }
 
 static inline void cevf_deinit_m_pcdno_handler(void) {
   _deinit_m_pcdno_handler(m_pcdno_handler_t1, _deinit_m_pcdno_handler_t1_it);
+  pthread_mutex_destroy(&m_pcdno_handler_t1_mutex);
   _deinit_m_pcdno_handler(m_pcdno_handler_t2, _deinit_m_pcdno_handler_t2_it);
+  pthread_mutex_destroy(&m_pcdno_handler_t1_mutex);
 }
 
 void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
   struct cevf_procedure_t1_s *s;
   if (m_pcdno_handler_t1 == NULL) return NULL;
+  pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)&s)) {
+    pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
     lge("No procedure for pcdno=%d!\n", pcdno);
     return NULL;
   }
+  pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   va_list argp;
   va_start(argp, argc);
   void *ans = s->vfunc(argc, argp);
@@ -366,56 +375,79 @@ void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
 uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t input_len, size_t *output_len) {
   struct cevf_procedure_t2_s *s;
   if (m_pcdno_handler_t2 == NULL) return NULL;
+  pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)&s)) {
+    pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
     lge("No procedure for pcdno=%d!\n", pcdno);
     return NULL;
   }
+  pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   return s->func(input, input_len, output_len, s->ctx);
 }
 
 int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd) {
   struct cevf_procedure_t1_s *pcd2;
   if (m_pcdno_handler_t1 == NULL) return -1;
+  pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   if (hashmap_get(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)pcd2)) {
+    pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
     free(pcd2);
   }
+  pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   pcd2 = (struct cevf_procedure_t1_s *)malloc(sizeof(struct cevf_procedure_t1_s));
   if (pcd2 == NULL) return -1;
   *pcd2 = pcd;
+  pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   hashmap_set(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)pcd2);
+  pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   return 0;
 }
 
 int cevf_add_procedure_t2(struct cevf_procedure_t2_s pcd) {
   struct cevf_procedure_t2_s *pcd2;
   if (m_pcdno_handler_t2 == NULL) return -1;
+  pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   if (hashmap_get(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)pcd2)) {
+    pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
     free(pcd2);
   }
+  pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   pcd2 = (struct cevf_procedure_t2_s *)malloc(sizeof(struct cevf_procedure_t2_s));
   if (pcd2 == NULL) return -1;
   *pcd2 = pcd;
+  pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   hashmap_set(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)pcd2);
+  pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   return 0;
 }
 
 int cevf_rm_procedure_t1(cevf_pcdno_t pcdno) {
   struct cevf_procedure_t1_s *pcd2;
+  pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)pcd2)) {
+    pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
     return 0;
   }
+  pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   free(pcd2);
+  pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   hashmap_remove(m_pcdno_handler_t1, &pcdno, sizeof(pcdno));
+  pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   return 0;
 }
 
 int cevf_rm_procedure_t2(cevf_pcdno_t pcdno) {
   struct cevf_procedure_t2_s *pcd2;
+  pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)pcd2)) {
+    pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
     return 0;
   }
+  pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   free(pcd2);
+  pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   hashmap_remove(m_pcdno_handler_t2, &pcdno, sizeof(pcdno));
+  pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   return 0;
 }
 
