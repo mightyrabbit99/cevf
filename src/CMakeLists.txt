@@ -85,25 +85,29 @@ install(TARGETS cevfd
 )
 
 if(BUILD_CEVF_LUA)
-add_library(cevf-lualib SHARED)
-set_target_properties(cevf-lualib PROPERTIES LIBRARY_OUTPUT_NAME "cevflua")
-set_target_properties(cevf-lualib PROPERTIES PREFIX "")
-set_target_properties(cevf-lualib PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-target_include_directories(cevf-lualib
+add_library(lua STATIC IMPORTED)
+set_target_properties(lua PROPERTIES IMPORTED_LOCATION "${LUA_LIBRARY}")
+
+add_library(cevfm-luamac SHARED)
+set_target_properties(cevfm-luamac PROPERTIES PREFIX "")
+set_target_properties(cevfm-luamac PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_compile_options(cevfm-luamac PRIVATE -rdynamic)
+target_sources(cevfm-luamac
   PRIVATE
-    ${LUA_INCLUDE_DIR}
+    extras/cevfm_luamac.c
 )
-target_sources(cevf-lualib
-  PRIVATE
-    cevf_lualib.c
-)
-target_link_libraries(cevf-lualib
+target_link_libraries(cevfm-luamac
   PUBLIC
     cevf
+    lua
 )
-install(TARGETS cevf-lualib
-  FILE_SET HEADERS DESTINATION include
-  LIBRARY DESTINATION lib/lua
-  PUBLIC_HEADER DESTINATION include
+target_include_directories(cevfm-luamac
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+    ${LUA_INCLUDE_DIR}
+)
+install(TARGETS cevfm-luamac
+  LIBRARY DESTINATION lib/cevfms/
 )
 endif()
