@@ -65,7 +65,7 @@ static int load_lua_mod(const char *file, void *ctx) {
     free(file2);
     return 0;
   }
-  char tmp[200];
+  char tmp[strlen(luamod_path) + strlen(file2) + 1];
   snprintf(tmp, sizeof(tmp), "%s/%s", luamod_path, file2);
   luaL_loadfile(L, tmp);
   lua_pcall(L, 0, LUA_MULTRET, 0);

@@ -320,29 +320,103 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
 
 int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
 
-static hashmap *m_pcdtyp_handler = NULL;
+static hashmap *m_pcdno_handler_t1 = NULL;
+static hashmap *m_pcdno_handler_t2 = NULL;
 
-void *_cevf_exec_procedure(cevf_pcdtyp_t pcdtyp, int argc, ...) {
-  void *(*vfunc)(va_list) = NULL;
-  if (m_pcdtyp_handler == NULL) return NULL;
-  if (!hashmap_get(m_pcdtyp_handler, &pcdtyp, sizeof(pcdtyp), (uintptr_t *)&vfunc)) {
-    lge("No procedure for pcdtyp=%d!\n", pcdtyp);
+static void _deinit_m_pcdno_handler_t1_it(void *key, size_t ksize, uintptr_t value, void *usr) {
+  struct cevf_procedure_t1_s *s = (struct cevf_procedure_t1_s *)value;
+  free(s);
+}
+
+static void _deinit_m_pcdno_handler_t2_it(void *key, size_t ksize, uintptr_t value, void *usr) {
+  struct cevf_procedure_t2_s *s = (struct cevf_procedure_t2_s *)value;
+  free(s);
+}
+
+static inline void _deinit_m_pcdno_handler(hashmap *m_pcdno_handler, hashmap_callback destroy_f) {
+  if (m_pcdno_handler == NULL) return;
+  hashmap_iterate(m_pcdno_handler, destroy_f, NULL);
+  hashmap_free(m_pcdno_handler);
+}
+
+static inline void cevf_init_m_pcdno_handler(void) {
+  m_pcdno_handler_t1 = hashmap_create();
+  m_pcdno_handler_t2 = hashmap_create();
+}
+
+static inline void cevf_deinit_m_pcdno_handler(void) {
+  _deinit_m_pcdno_handler(m_pcdno_handler_t1, _deinit_m_pcdno_handler_t1_it);
+  _deinit_m_pcdno_handler(m_pcdno_handler_t2, _deinit_m_pcdno_handler_t2_it);
+}
+
+void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
+  struct cevf_procedure_t1_s *s;
+  if (m_pcdno_handler_t1 == NULL) return NULL;
+  if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)&s)) {
+    lge("No procedure for pcdno=%d!\n", pcdno);
     return NULL;
   }
   va_list argp;
   va_start(argp, argc);
-  void *ans = vfunc(argp);
+  void *ans = s->vfunc(argc, argp);
   va_end(argp);
   return ans;
 }
 
-static hashmap *compile_m_pcdtyp_handler(struct cevf_procedure_s *pcd_arr, cevf_asz_t pcd_num) {
-  hashmap *m_pcdtyp_handler = hashmap_create();
-  if (m_pcdtyp_handler == NULL) return NULL;
-  for (cevf_asz_t i = 0; i < pcd_num; i++) {
-    hashmap_set(m_pcdtyp_handler, &pcd_arr[i].pcdtyp, sizeof(pcd_arr[i].pcdtyp), (uintptr_t)pcd_arr[i].vfunc);
+uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t input_len, size_t *output_len) {
+  struct cevf_procedure_t2_s *s;
+  if (m_pcdno_handler_t2 == NULL) return NULL;
+  if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)&s)) {
+    lge("No procedure for pcdno=%d!\n", pcdno);
+    return NULL;
   }
-  return m_pcdtyp_handler;
+  return s->func(input, input_len, output_len, s->ctx);
+}
+
+int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd) {
+  struct cevf_procedure_t1_s *pcd2;
+  if (m_pcdno_handler_t1 == NULL) return -1;
+  if (hashmap_get(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)pcd2)) {
+    free(pcd2);
+  }
+  pcd2 = (struct cevf_procedure_t1_s *)malloc(sizeof(struct cevf_procedure_t1_s));
+  if (pcd2 == NULL) return -1;
+  *pcd2 = pcd;
+  hashmap_set(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)pcd2);
+  return 0;
+}
+
+int cevf_add_procedure_t2(struct cevf_procedure_t2_s pcd) {
+  struct cevf_procedure_t2_s *pcd2;
+  if (m_pcdno_handler_t2 == NULL) return -1;
+  if (hashmap_get(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)pcd2)) {
+    free(pcd2);
+  }
+  pcd2 = (struct cevf_procedure_t2_s *)malloc(sizeof(struct cevf_procedure_t2_s));
+  if (pcd2 == NULL) return -1;
+  *pcd2 = pcd;
+  hashmap_set(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)pcd2);
+  return 0;
+}
+
+int cevf_rm_procedure_t1(cevf_pcdno_t pcdno) {
+  struct cevf_procedure_t1_s *pcd2;
+  if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)pcd2)) {
+    return 0;
+  }
+  free(pcd2);
+  hashmap_remove(m_pcdno_handler_t1, &pcdno, sizeof(pcdno));
+  return 0;
+}
+
+int cevf_rm_procedure_t2(cevf_pcdno_t pcdno) {
+  struct cevf_procedure_t2_s *pcd2;
+  if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)pcd2)) {
+    return 0;
+  }
+  free(pcd2);
+  hashmap_remove(m_pcdno_handler_t2, &pcdno, sizeof(pcdno));
+  return 0;
 }
 
 /////////////////////////
@@ -967,18 +1041,15 @@ int cevf_init(void) {
     lge("data_mq init failed\n");
     return -1;
   }
+  cevf_init_m_pcdno_handler();
   if (eloop_init()) return -1;
   return 0;
 }
 
-int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num,
-             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt, struct cevf_procedure_s *pcd_arr,
-             cevf_asz_t pcd_num) {
+int cevf_run(int argc, char *argv[], struct cevf_run_arg_s a) {
   int ret = 0;
-  hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_t1_arr, cm_t1_num, cm_t2_arr, cm_t2_num);
+  hashmap *m_evtyp_handler = compile_m_evtyp_handler(a.cm_t1_arr, a.cm_t1_num, a.cm_t2_arr, a.cm_t2_num);
   if (m_evtyp_handler == NULL) goto fail;
-  m_pcdtyp_handler = compile_m_pcdtyp_handler(pcd_arr, pcd_num);
-  if (m_pcdtyp_handler == NULL) goto fail;
 
   ctrl_mq = qmsg2_new_mq(CEVF_CTRL_MQ_SZ);
   if (ctrl_mq == QMSG2_ERR_MQ) {
@@ -986,9 +1057,9 @@ int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI
     goto fail;
   }
 
-  if (ret = cevf_run_initialisers(argc, argv, ini_arr, ini_num)) goto fail2;
+  if (ret = cevf_run_initialisers(argc, argv, a.ini_arr, a.ini_num)) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
-  struct thstat_s *thstat = cevf_run_ev(pd_arr, pd_num, m_evtyp_handler, cm_thr_cnt);
+  struct thstat_s *thstat = cevf_run_ev(a.pd_arr, a.pd_num, m_evtyp_handler, a.cm_thr_cnt);
   if (cevf_register_sock_cnt > 0)
     eloop_run();
   else
@@ -996,11 +1067,9 @@ int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI
   ev_join(thstat);
   ev_deinit();
 fail2:
-  cevf_run_deinitialisers(ini_arr, ini_num);
+  cevf_run_deinitialisers(a.ini_arr, a.ini_num);
 fail:
   qmsg2_del_mq(ctrl_mq);
-  delete_m_evtyp_handler(m_pcdtyp_handler);
-  m_pcdtyp_handler = NULL;
   delete_m_evtyp_handler(m_evtyp_handler);
   return ret;
 }
@@ -1012,6 +1081,7 @@ void cevf_terminate(void) {
 
 void cevf_deinit(void) {
   eloop_destroy();
+  cevf_deinit_m_pcdno_handler();
   qmsg2_del_mq(data_mq);
   _timeout_deinit();
   qmsg2_deinit();

@@ -47,10 +47,10 @@ typedef void (*cevf_signal_handler)(int sig);
 #endif  // CEVF_EV_DTYP
 typedef CEVF_EV_DTYP cevf_evtyp_t;
 typedef uint16_t cevf_asz_t;
-#ifndef CEVF_PCD_DTYP
-#define CEVF_PCD_DTYP uint16_t
-#endif // CEVF_PCD_DTYP
-typedef CEVF_PCD_DTYP cevf_pcdtyp_t;
+#ifndef CEVF_PCDNO_DTYP
+#define CEVF_PCDNO_DTYP uint16_t
+#endif // CEVF_PCDNO_DTYP
+typedef CEVF_PCDNO_DTYP cevf_pcdno_t;
 typedef void *cevf_mq_t;
 typedef uint8_t cevf_producer_id_t;
 typedef int (*cevf_consumer_handler_t1_t)(void *data, cevf_evtyp_t evtyp);
@@ -83,14 +83,37 @@ struct cevf_consumer_t2_s {
   cevf_consumer_handler_t2_t handler;
 };
 
-struct cevf_procedure_s {
-  cevf_pcdtyp_t pcdtyp;
-  void *(*vfunc)(va_list args);
+struct cevf_procedure_t1_s {
+  cevf_pcdno_t pcdno;
+  void *(*vfunc)(int argc, va_list argp);
+};
+
+struct cevf_procedure_t2_s {
+  cevf_pcdno_t pcdno;
+  uint8_t *(*func)(const uint8_t *input, size_t input_len, size_t *output_len, void *ctx);
+  void *ctx;
+};
+
+struct cevf_run_arg_s {
+  struct cevf_initialiser_s **ini_arr;
+  cevf_asz_t *ini_num;
+  struct cevf_producer_s *pd_arr;
+  cevf_asz_t pd_num;
+  struct cevf_consumer_t1_s *cm_t1_arr;
+  cevf_asz_t cm_t1_num;
+  struct cevf_consumer_t2_s *cm_t2_arr;
+  cevf_asz_t cm_t2_num;
+  uint8_t cm_thr_cnt;
 };
 
 #define CEVF_INI_PRIO_MAX 100
 
-void *_cevf_exec_procedure(cevf_pcdtyp_t pcdtyp, int argc, ...);
+int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd);
+int cevf_add_procedure_t2(struct cevf_procedure_t2_s pcd);
+void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...);
+uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t input_len, size_t *output_len);
+int cevf_rm_procedure_t1(cevf_pcdno_t pcdno);
+int cevf_rm_procedure_t2(cevf_pcdno_t pcdno);
 cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd);
 int cevf_rm_producer(cevf_producer_id_t id);
 cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp);
@@ -98,9 +121,7 @@ cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 int cevf_init(void);
-int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num,
-             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt,
-             struct cevf_procedure_s *pcd_arr, cevf_asz_t pcd_num);
+int cevf_run(int argc, char *argv[], struct cevf_run_arg_s arg);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);
 cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf);
@@ -131,5 +152,5 @@ void cevf_deinit(void);
       .terminator = CEVF_THENDNAME(_thname),              \
       .context = _context,                                \
   })
-#define cevf_exec_procedure(typ, ...) _cevf_exec_procedure(typ, CEVF_VAARGC(__VA_ARGS__), __VA_ARGS__)
+#define cevf_exec_procedure_t1(typ, ...) _cevf_exec_procedure_t1(typ, CEVF_VAARGC(__VA_ARGS__), __VA_ARGS__)
 #endif  // CEVF_H
