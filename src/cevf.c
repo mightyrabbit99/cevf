@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/msg.h>
+#include <stdarg.h>
 
 #include "cevf_ev.h"
 #include "cvector.h"
@@ -327,6 +328,31 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
 }
 
 int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
+
+static hashmap *m_pcdtyp_handler = NULL;
+
+void *_cevf_exec_procedure(cevf_pcdtyp_t pcdtyp, int argc, ...) {
+  void *(*vfunc)(va_list) = NULL;
+  if (m_pcdtyp_handler == NULL) return NULL;
+  if (!hashmap_get(m_pcdtyp_handler, &pcdtyp, sizeof(pcdtyp), (uintptr_t *)&vfunc)) {
+    lge("No procedure for pcdtyp=%d!\n", pcdtyp);
+    return NULL;
+  }
+  va_list argp;
+  va_start(argp, argc);
+  void *ans = vfunc(argp);
+  va_end(argp);
+  return ans;
+}
+
+static hashmap *compile_m_pcdtyp_handler(struct cevf_procedure_s *pcd_arr, cevf_asz_t pcd_num) {
+  hashmap *m_pcdtyp_handler = hashmap_create();
+  if (m_pcdtyp_handler == NULL) return NULL;
+  for (cevf_asz_t i = 0; i < pcd_num; i++) {
+    hashmap_set(m_pcdtyp_handler, &pcd_arr[i].pcdtyp, sizeof(pcd_arr[i].pcdtyp), (uintptr_t)pcd_arr[i].vfunc);
+  }
+  return m_pcdtyp_handler;
+}
 
 /////////////////////////
 
@@ -955,10 +981,13 @@ int cevf_init(void) {
 }
 
 int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num,
-             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt) {
+             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt,
+             struct cevf_procedure_s *pcd_arr, cevf_asz_t pcd_num) {
   int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_t1_arr, cm_t1_num, cm_t2_arr, cm_t2_num);
   if (m_evtyp_handler == NULL) goto fail;
+  m_pcdtyp_handler = compile_m_pcdtyp_handler(pcd_arr, pcd_num);
+  if (m_pcdtyp_handler == NULL) goto fail;
 
   ctrl_mq = qmsg2_new_mq(CEVF_CTRL_MQ_SZ);
   if (ctrl_mq == QMSG2_ERR_MQ) {
@@ -979,6 +1008,8 @@ fail2:
   cevf_run_deinitialisers(ini_arr, ini_num);
 fail:
   qmsg2_del_mq(ctrl_mq);
+  delete_m_evtyp_handler(m_pcdtyp_handler);
+  m_pcdtyp_handler = NULL;
   delete_m_evtyp_handler(m_evtyp_handler);
   return ret;
 }

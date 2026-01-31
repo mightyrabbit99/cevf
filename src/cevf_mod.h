@@ -22,12 +22,16 @@ extern struct cevf_consumer_t1_s *_cevf_cm_t1_arr;
 extern cevf_asz_t _cevf_cm_t1_arr_sz;
 extern struct cevf_consumer_t2_s *_cevf_cm_t2_arr;
 extern cevf_asz_t _cevf_cm_t2_arr_sz;
+extern struct cevf_procedure_s *_cevf_pcd_arr;
+extern cevf_asz_t _cevf_pcd_arr_sz;
+
 extern uint8_t _cevf_is_static_linked;
 
 static struct cevf_initialiser_s *_cevf_tmp_ini_p;
 static struct cevf_producer_s *_cevf_tmp_pd_p;
 static struct cevf_consumer_t1_s *_cevf_tmp_cm_t1_p;
 static struct cevf_consumer_t2_s *_cevf_tmp_cm_t2_p;
+static struct cevf_procedure_s *_cevf_tmp_pcd_p;
 static int _cevf_ret = 0;
 
 #ifdef CEVF_ALLOW_LOAD_SUBMOD
@@ -103,6 +107,18 @@ static void **_cevf_tmp_submod_p;
     }                                                                                                                \
   } while (0)
 #define cevf_mod_add_consumer_t2_global(_handler) cevf_mod_add_consumer_t2(CEVF_RESERVED_EV_THEND, _handler)
+#define cevf_mod_add_procedure(_pcd_typ, _pcd_f)                                                             \
+  do {                                                                                                       \
+    struct cevf_procedure_s item__ = (struct cevf_procedure_s){                                              \
+        .pcdtyp = _pcd_typ,                                                                                  \
+        .vfunc = _pcd_f,                                                                                     \
+    };                                                                                                       \
+    __cevf_add_list_item(_cevf_pcd_arr, _cevf_pcd_arr_sz, _cevf_tmp_pcd_p, struct cevf_procedure_s, item__); \
+    if (_cevf_ret == -1) {                                                                                   \
+      fprintf(stderr, "cevf procedure error\n");                                                             \
+      exit(1);                                                                                               \
+    }                                                                                                        \
+  } while (0)
 #ifdef CEVF_ALLOW_LOAD_SUBMOD
 #define cevf_mod_add_submod(modfile)                                                              \
   do {                                                                                            \
