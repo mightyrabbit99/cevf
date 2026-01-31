@@ -174,7 +174,10 @@ static int luamac_init(int argc, char *argv[]) {
   return 0;
 }
 
-static void luamac_deinit(void) { delete_m_evtyp_modnamelst(m_evtyp_modnamelst); }
+static void luamac_deinit(void) {
+  lua_close(L);
+  delete_m_evtyp_modnamelst(m_evtyp_modnamelst);
+}
 
 static inline void mod_luamac_init(void) {
   cevf_mod_add_initialiser(0, luamac_init, luamac_deinit);

@@ -32,11 +32,11 @@
 #include <assert.h>
 #include <errno.h>
 #include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/msg.h>
-#include <stdarg.h>
 
 #include "cevf_ev.h"
 #include "cvector.h"
@@ -206,28 +206,18 @@ struct _handle_ev_farr_s {
   void *handler_arr;
 };
 
-#define _cevf_exec_f(ftyp, farr, res, evtyp, ...)                                           \
-  do {                                                                                      \
-    cvector_vector_type(ftyp) handler_arr__ = (cvector_vector_type(ftyp))farr->handler_arr; \
-    ftyp *f__;                                                                              \
-    if (cvector_empty(handler_arr__)) {                                                     \
-      lge("No handler for evtyp=%d!\n", evtyp);                                             \
-    }                                                                                       \
-    cvector_for_each_in(f__, handler_arr__) {                                               \
-      if (res = (*f__)(__VA_ARGS__) < 0) break;                                             \
-    }                                                                                       \
+#define _cevf_exec_f(ftyp, farr, res, evtyp, ...) \
+  do {                                            \
+    ftyp *f__;                                    \
+    if (cvector_empty(farr)) {                    \
+      if (evtyp != CEVF_RESERVED_EV_THEND) {      \
+        lge("No handler for evtyp=%d!\n", evtyp); \
+      }                                           \
+    }                                             \
+    cvector_for_each_in(f__, farr) {              \
+      if (res = (*f__)(__VA_ARGS__) < 0) break;   \
+    }                                             \
   } while (0)
-
-static int cevf_handle_event_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) {
-  struct _handle_ev_farr_s *farr = (struct _handle_ev_farr_s *)context;
-  int res = 0;
-  if (farr->typ == cevf_consumer_typ_t1) {
-    _cevf_exec_f(cevf_consumer_handler_t1_t, farr, res, evtyp, data, evtyp);
-  } else {
-    _cevf_exec_f(cevf_consumer_handler_t2_t, farr, res, evtyp, data, datalen, evtyp);
-  }
-  return res;
-}
 
 struct _cevf_consumer_fbox_s {
   cvector_vector_type(cevf_consumer_handler_t1_t) handler_t1_arr;
@@ -235,6 +225,7 @@ struct _cevf_consumer_fbox_s {
 };
 
 static inline int _handle_event(hashmap *m_evtyp_handler, uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, cevf_evtyp_t evtyp2, uint8_t need_freed) {
+  int res = 0;
   struct _cevf_consumer_fbox_s *fbox;
   if (!hashmap_get(m_evtyp_handler, &evtyp, sizeof(evtyp), (uintptr_t *)&fbox)) {
     if (evtyp != CEVF_RESERVED_EV_THEND) {
@@ -242,17 +233,17 @@ static inline int _handle_event(hashmap *m_evtyp_handler, uint8_t *data, size_t 
     }
     return 0;
   }
-  struct _handle_ev_farr_s ctx2 = (struct _handle_ev_farr_s){
-      .typ = need_freed ? cevf_consumer_typ_t2 : cevf_consumer_typ_t1,
-      .handler_arr = need_freed ? (void *)fbox->handler_t2_arr : (void *)fbox->handler_t1_arr,
-  };
-  return cevf_handle_event_1(data, datalen, evtyp2, &ctx2);
+  if (need_freed == 0) {
+    _cevf_exec_f(cevf_consumer_handler_t1_t, fbox->handler_t1_arr, res, evtyp, data, evtyp2);
+  } else {
+    _cevf_exec_f(cevf_consumer_handler_t2_t, fbox->handler_t2_arr, res, evtyp, data, datalen, evtyp2);
+  }
+  return res;
 }
 
 static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { _cevf_generic_enq(NULL, CEVF_RESERVED_EV_THEND, _cevf_evq_enqueue); }
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
-  ev_asserthandlrf(arg1, cevf_handle_event_1);
   int ret = 0;
   uint8_t *data;
   ssize_t datalen;
@@ -901,7 +892,7 @@ static struct thpillar_s cevf_pillars[] = {{
                                            },
                                            {
                                                .thtyp = thtyp_consumer,
-                                               .handler = cevf_handle_event_1,
+                                               .handler = NULL,
                                            }};
 
 static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t pd_num, hashmap *m_evtyp_handler, uint8_t cm_thr_cnt) {
@@ -981,8 +972,8 @@ int cevf_init(void) {
 }
 
 int cevf_run(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX], struct cevf_producer_s *pd_arr, cevf_asz_t pd_num,
-             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt,
-             struct cevf_procedure_s *pcd_arr, cevf_asz_t pcd_num) {
+             struct cevf_consumer_t1_s *cm_t1_arr, cevf_asz_t cm_t1_num, struct cevf_consumer_t2_s *cm_t2_arr, cevf_asz_t cm_t2_num, uint8_t cm_thr_cnt, struct cevf_procedure_s *pcd_arr,
+             cevf_asz_t pcd_num) {
   int ret = 0;
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(cm_t1_arr, cm_t1_num, cm_t2_arr, cm_t2_num);
   if (m_evtyp_handler == NULL) goto fail;
