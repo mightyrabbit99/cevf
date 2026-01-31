@@ -18,6 +18,7 @@
 #define CEVF_LUA_MOD_EVARR_NAME "cevf_events"
 #define CEVF_LUA_MOD_PCDNO_NAME "cevf_procedure_no"
 #define CEVF_LUA_MOD_ENQF_NAME "cevf_enqueue"
+#define CEVF_LUA_MOD_EXECPCD_NAME "cevf_exec_procedure"
 
 static lua_State *L = NULL;
 
@@ -44,13 +45,25 @@ static int _enqueue_f(lua_State *L) {
   int res = -1;
   size_t len;
   if (!(lua_isstring(L, -2) && lua_isnumber(L, -1))) {
-    lua_pushnumber(L, res);
-    return 1;
+    return 0;
   }
   const uint8_t *str = lua_tolstring(L, -2, &len);
   cevf_evtyp_t evtyp = lua_tonumber(L, -1);
   res = cevf_copy_enqueue(str, len, evtyp);
   lua_pushnumber(L, res);
+  return 1;
+}
+
+static int _execpcd_f(lua_State *L) {
+  size_t len, reslen;
+  if (!(lua_isstring(L, -1) && lua_isnumber(L, -2))) {
+    return 0;
+  }
+  cevf_pcdno_t pcdno = lua_tonumber(L, -2);
+  const uint8_t *str = lua_tolstring(L, -1, &len);
+  uint8_t *res = cevf_exec_procedure_t2(pcdno, str, len, &reslen);
+  lua_pushlstring(L, res, reslen);
+  free(res);
   return 1;
 }
 
@@ -282,6 +295,8 @@ static int luamac_init(int argc, char *argv[]) {
   luaL_openlibs(L);
   lua_pushcfunction(L, _enqueue_f);
   lua_setglobal(L, CEVF_LUA_MOD_ENQF_NAME);
+  lua_pushcfunction(L, _execpcd_f);
+  lua_setglobal(L, CEVF_LUA_MOD_EXECPCD_NAME);
   m_evtyp_modnamelst = hashmap_create();
   pthread_mutex_init(&m_evtyp_modnamelst_mutex, NULL);
   m_pcdno_modname = hashmap_create();
