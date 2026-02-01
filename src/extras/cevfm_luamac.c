@@ -42,6 +42,34 @@ static inline int _foreach_filenode(const char *path, int (*f)(const char *, voi
   return ret;
 }
 
+struct _fnode_arr_s {
+  char **arr;
+  size_t arrlen;
+};
+
+static int _add_fnode_to_array(const char *name, void *ctx) {
+  struct _fnode_arr_s *arr = (struct _fnode_arr_s *)ctx;
+  char **arr2 = (char **)realloc(arr->arr, arr->arrlen + 1);
+  if (arr2 == NULL) return -1;
+  arr->arr = arr2;
+  arr->arr[arr->arrlen++] = strdup(name);
+}
+
+static int pstrcmp(const void* a, const void* b) {
+  return strcmp(*(const char**)a, *(const char**)b);
+}
+
+static inline int _foreach_filenode_sorted(const char *path, int (*f)(const char *, void *), void *ctx) {
+  struct _fnode_arr_s arr1 = (struct _fnode_arr_s){0};
+  _foreach_filenode(path, _add_fnode_to_array, (void *)&arr1);
+  qsort(arr1.arr, arr1.arrlen, sizeof(arr1.arr[0]), pstrcmp);
+  for (size_t i = 0; i < arr1.arrlen; i++) {
+    f(arr1.arr[i], ctx);
+    free(arr1.arr[i]);
+  }
+  free(arr1.arr);
+}
+
 static int _enqueue_f(lua_State *L) {
   int res = -1;
   size_t len;
@@ -307,7 +335,7 @@ static int luamac_init(int argc, char *argv[]) {
   pthread_mutex_init(&m_evtyp_modnamelst_mutex, NULL);
   m_pcdno_modname = hashmap_create();
   pthread_mutex_init(&m_pcdno_modname_mutex, NULL);
-  _foreach_filenode(env_str, load_lua_mod, env_str);
+  _foreach_filenode_sorted(env_str, load_lua_mod, env_str);
   return 0;
 }
 
