@@ -8,7 +8,8 @@
 #include "lualib.h"
 #include "map.h"
 
-#define lge(...)                                                \
+#define lge(...) fprintf(stderr, __VA_ARGS__)
+#define lg(...)                                                 \
   do {                                                          \
     fprintf(stderr, "[debug] %s %d: ", __FUNCTION__, __LINE__); \
     fprintf(stderr, __VA_ARGS__);                               \
@@ -49,14 +50,15 @@ struct _fnode_arr_s {
 
 static int _add_fnode_to_array(const char *name, void *ctx) {
   struct _fnode_arr_s *arr = (struct _fnode_arr_s *)ctx;
-  char **arr2 = (char **)realloc(arr->arr, arr->arrlen + 1);
+  char **arr2 = (char **)realloc(arr->arr, sizeof(char *) * (arr->arrlen + 1));
   if (arr2 == NULL) return -1;
   arr->arr = arr2;
   arr->arr[arr->arrlen++] = strdup(name);
+  return 0;
 }
 
-static int pstrcmp(const void* a, const void* b) {
-  return strcmp(*(const char**)a, *(const char**)b);
+static int pstrcmp(const void *a, const void *b) {
+  return strcmp(*(const char **)a, *(const char **)b);
 }
 
 static inline int _foreach_filenode_sorted(const char *path, int (*f)(const char *, void *), void *ctx) {
@@ -154,7 +156,6 @@ static inline char *_exec_mainf_t2(lua_State *L, const char *modname, const uint
   return res;
 }
 
-
 static hashmap *m_evtyp_modnamelst = NULL;
 static pthread_mutex_t m_evtyp_modnamelst_mutex;
 static hashmap *m_pcdno_modname = NULL;
@@ -238,8 +239,10 @@ static inline int _load_lua_mod_register_ev(lua_State *L, const char *_modname) 
     }
     _add_typ_modname(m_evtyp_modnamelst, evtyp, modname);
   }
+
+  lg("added event handler %s\n", modname);
   lua_pop(L, 1);
-  return 0;
+  return 1;
 }
 
 static inline int _load_lua_mod_register_pcd(lua_State *L, const char *_modname) {
@@ -257,44 +260,56 @@ static inline int _load_lua_mod_register_pcd(lua_State *L, const char *_modname)
   }
   hashmap_set(m_pcdno_modname, &pcdno, sizeof(pcdno), (uintptr_t)modname);
   cevf_add_procedure_t2((struct cevf_procedure_t2_s){
-    .pcdno = pcdno,
-    .func = luamac_generic_procedure_t2,
-    .ctx = luamac_generic_ctx + pcdno,
+      .pcdno = pcdno,
+      .func = luamac_generic_procedure_t2,
+      .ctx = luamac_generic_ctx + pcdno,
   });
-  return 0;
+  lua_pop(L, 1);
+  lg("added procedure %s\n", modname);
+  return 1;
 }
 
 static int load_lua_mod(const char *file, void *ctx) {
   char *luamod_path = (char *)ctx;
-  char *file2 = strdup(file);
-  char *p = strrchr(file2, '.');
-  if (p == NULL || strcmp(p, ".lua") != 0) {
-    free(file2);
-    return 0;
-  }
-  char tmp[strlen(luamod_path) + strlen(file2) + 1];
-  snprintf(tmp, sizeof(tmp), "%s/%s", luamod_path, file2);
+  char *p, *modname = NULL;
+  int ret = 0, added = 0;
+
+  p = strrchr(file, '.');
+  if (p == NULL || strcmp(p, ".lua") != 0) return 0;
+
+  char tmp[strlen(luamod_path) + strlen(file) + 10];
+  snprintf(tmp, sizeof(tmp), "%s/%s", luamod_path, file);
   luaL_loadfile(L, tmp);
   lua_pcall(L, 0, LUA_MULTRET, 0);
-  lua_pushvalue(L, -1);
-  if (!lua_istable(L, -1)) return 0;
-
-  *p = '\0';
-  char *modname = file2;
-
+  if (!lua_istable(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
   lua_getfield(L, -1, CEVF_LUA_MOD_MAIN_FUNCTOIN_NAME);
-  if (!lua_isfunction(L, -1)) goto not_a_module;
+  if (!lua_isfunction(L, -1)) {
+    lua_pop(L, 2);
+    return 0;
+  }
   lua_pop(L, 1);
 
-  _load_lua_mod_register_ev(L, modname);
-  _load_lua_mod_register_pcd(L, modname);
+  modname = strdup(file);
+  p = strrchr(modname, '.');
+  *p = '\0';
 
-  lua_setglobal(L, file2);
-  free(file2);
-  return 0;
-not_a_module:
-  lua_pop(L, 1);
-  free(file2);
+  if (!added) {
+    ret = _load_lua_mod_register_pcd(L, modname);
+    added = added || (ret > 0);
+  }
+  if (!added) {
+    ret = _load_lua_mod_register_ev(L, modname);
+    added = added || (ret > 0);
+  }
+
+  if (added)
+    lua_setglobal(L, modname);
+  else
+    lua_pop(L, 1);
+  free(modname);
   return 0;
 }
 
