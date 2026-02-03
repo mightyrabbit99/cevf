@@ -93,6 +93,7 @@ int main(int argc, char *argv[]) {
 
   cevf_register_signal_terminate(_process_terminate, NULL);
   if (cevf_init()) return -1;
+  cevf_add_procedures();
   int res = cevf_start(argc, argv, cm_thr_cnt);
   cevf_deinit();
 

@@ -22,6 +22,10 @@ extern struct cevf_consumer_t1_s *_cevf_cm_t1_arr;
 extern cevf_asz_t _cevf_cm_t1_arr_sz;
 extern struct cevf_consumer_t2_s *_cevf_cm_t2_arr;
 extern cevf_asz_t _cevf_cm_t2_arr_sz;
+extern struct cevf_procedure_t1_s *_cevf_pcd_t1_arr;
+extern cevf_asz_t _cevf_pcd_t1_arr_sz ;
+extern struct cevf_procedure_t2_s *_cevf_pcd_t2_arr;
+extern cevf_asz_t _cevf_pcd_t2_arr_sz ;
 
 extern uint8_t _cevf_is_static_linked;
 
@@ -29,6 +33,8 @@ static struct cevf_initialiser_s *_cevf_tmp_ini_p;
 static struct cevf_producer_s *_cevf_tmp_pd_p;
 static struct cevf_consumer_t1_s *_cevf_tmp_cm_t1_p;
 static struct cevf_consumer_t2_s *_cevf_tmp_cm_t2_p;
+static struct cevf_procedure_t1_s *_cevf_tmp_pcd_t1_p;
+static struct cevf_procedure_t2_s *_cevf_tmp_pcd_t2_p;
 static int _cevf_ret = 0;
 
 #ifdef CEVF_ALLOW_LOAD_SUBMOD
@@ -104,6 +110,32 @@ static void **_cevf_tmp_submod_p;
     }                                                                                                                \
   } while (0)
 #define cevf_mod_add_consumer_t2_global(_handler) cevf_mod_add_consumer_t2(CEVF_RESERVED_EV_THEND, _handler)
+#define cevf_mod_add_procedure_t1(_pcdno, _f)                                                                            \
+  do {                                                                                                                   \
+    struct cevf_procedure_t1_s item__ = (struct cevf_procedure_t1_s){                                                    \
+        .pcdno = _pcdno,                                                                                                 \
+        .vfunc = _f,                                                                                                     \
+    };                                                                                                                   \
+    __cevf_add_list_item(_cevf_pcd_t1_arr, _cevf_pcd_t1_arr_sz, _cevf_tmp_pcd_t1_p, struct cevf_procedure_t1_s, item__); \
+    if (_cevf_ret == -1) {                                                                                               \
+      fprintf(stderr, "cevf procedure error\n");                                                                         \
+      exit(1);                                                                                                           \
+    }                                                                                                                    \
+  } while (0)
+#define cevf_mod_add_procedure_t2(_pcdno, _f, _ctx)                                                                      \
+  do {                                                                                                                   \
+    struct cevf_procedure_t2_s item__ = (struct cevf_procedure_t2_s){                                                    \
+        .pcdno = _pcdno,                                                                                                 \
+        .func = _f,                                                                                                      \
+        .ctx = _ctx,                                                                                                     \
+    };                                                                                                                   \
+    __cevf_add_list_item(_cevf_pcd_t2_arr, _cevf_pcd_t2_arr_sz, _cevf_tmp_pcd_t2_p, struct cevf_procedure_t2_s, item__); \
+    if (_cevf_ret == -1) {                                                                                               \
+      fprintf(stderr, "cevf procedure error\n");                                                                         \
+      exit(1);                                                                                                           \
+    }                                                                                                                    \
+  } while (0)
+
 #ifdef CEVF_ALLOW_LOAD_SUBMOD
 #define cevf_mod_add_submod(modfile)                                                              \
   do {                                                                                            \
@@ -131,12 +163,16 @@ static void __attribute__((destructor)) _cevf_mod_deinit(void) {
 #define cevf_is_static() (_cevf_is_static_linked == 1)
 
 #ifdef CEVF_STATIC_INIT
-#define cevf_mod_init(function)                                                                               \
-  static void cevf_mod_init_##function(int argc, char *argv[]) { function(); }\
+#define cevf_mod_init(function)                                  \
+  static void cevf_mod_init_##function(int argc, char *argv[]) { \
+    function();                                                  \
+  }                                                              \
   __attribute__((section(".init_array"))) static void *_cevf_mod_init_##function = &cevf_mod_init_##function;
 #else  // CEVF_STATIC_INIT
-#define cevf_mod_init(function) \
-  static void __attribute__((constructor)) cevf_mod_init_##function(void) { function(); }
+#define cevf_mod_init(function)                                             \
+  static void __attribute__((constructor)) cevf_mod_init_##function(void) { \
+    function();                                                             \
+  }
 #endif  // CEVF_STATIC_INIT
 
 #endif  // CEVF_MOD_H

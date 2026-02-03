@@ -19,12 +19,23 @@ struct cevf_consumer_t1_s *_cevf_cm_t1_arr;
 cevf_asz_t _cevf_cm_t1_arr_sz = 0;
 struct cevf_consumer_t2_s *_cevf_cm_t2_arr;
 cevf_asz_t _cevf_cm_t2_arr_sz = 0;
+struct cevf_procedure_t1_s *_cevf_pcd_t1_arr;
+cevf_asz_t _cevf_pcd_t1_arr_sz = 0;
+struct cevf_procedure_t2_s *_cevf_pcd_t2_arr;
+cevf_asz_t _cevf_pcd_t2_arr_sz = 0;
 
 #ifdef CEVF_STATIC_LIB
 uint8_t _cevf_is_static_linked = 1;
 #else   // CEVF_STATIC_LIB
 uint8_t _cevf_is_static_linked = 0;
 #endif  // CEVF_STATIC_LIB
+
+static inline void cevf_add_procedures(void) {
+  for (cevf_asz_t i = 0; i < _cevf_pcd_t1_arr_sz; i++)
+    cevf_add_procedure_t1(_cevf_pcd_t1_arr[i]);
+  for (cevf_asz_t i = 0; i < _cevf_pcd_t2_arr_sz; i++)
+    cevf_add_procedure_t2(_cevf_pcd_t2_arr[i]);
+}
 
 #define cevf_start(argc, argv, _cm_thr_cnt)                         \
   cevf_run(argc, argv,                                              \
@@ -52,6 +63,12 @@ static void __attribute__((destructor)) _cevf_main_des(void) {
   free(_cevf_cm_t2_arr);
   _cevf_cm_t2_arr = NULL;
   _cevf_cm_t2_arr_sz = 0;
+  free(_cevf_pcd_t1_arr);
+  _cevf_pcd_t1_arr = NULL;
+  _cevf_pcd_t1_arr_sz = 0;
+  free(_cevf_pcd_t2_arr);
+  _cevf_pcd_t2_arr = NULL;
+  _cevf_pcd_t2_arr_sz = 0;
 }
 
 #endif

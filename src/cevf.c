@@ -352,7 +352,7 @@ static inline void cevf_deinit_m_pcdno_handler(void) {
   _deinit_m_pcdno_handler(m_pcdno_handler_t1, _deinit_m_pcdno_handler_t1_it);
   pthread_mutex_destroy(&m_pcdno_handler_t1_mutex);
   _deinit_m_pcdno_handler(m_pcdno_handler_t2, _deinit_m_pcdno_handler_t2_it);
-  pthread_mutex_destroy(&m_pcdno_handler_t1_mutex);
+  pthread_mutex_destroy(&m_pcdno_handler_t2_mutex);
 }
 
 void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
@@ -386,14 +386,16 @@ uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t
 }
 
 int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd) {
-  struct cevf_procedure_t1_s *pcd2;
+  struct cevf_procedure_t1_s *pcd2 = NULL;
   if (m_pcdno_handler_t1 == NULL) return -1;
   pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
-  if (hashmap_get(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)pcd2)) {
+  if (hashmap_get(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)&pcd2)) {
     pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
     free(pcd2);
+  } else {
+    pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   }
-  pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
+
   pcd2 = (struct cevf_procedure_t1_s *)malloc(sizeof(struct cevf_procedure_t1_s));
   if (pcd2 == NULL) return -1;
   *pcd2 = pcd;
@@ -404,14 +406,16 @@ int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd) {
 }
 
 int cevf_add_procedure_t2(struct cevf_procedure_t2_s pcd) {
-  struct cevf_procedure_t2_s *pcd2;
+  struct cevf_procedure_t2_s *pcd2 = NULL;
   if (m_pcdno_handler_t2 == NULL) return -1;
   pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
-  if (hashmap_get(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)pcd2)) {
+  if (hashmap_get(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)&pcd2)) {
     pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
     free(pcd2);
+  } else {
+    pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   }
-  pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
+
   pcd2 = (struct cevf_procedure_t2_s *)malloc(sizeof(struct cevf_procedure_t2_s));
   if (pcd2 == NULL) return -1;
   *pcd2 = pcd;

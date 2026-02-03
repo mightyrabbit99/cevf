@@ -1,6 +1,7 @@
 #include <cevf_mod.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdarg.h>
 
 #include "srvctx.h"
 #include "cevf_extras.h"
@@ -22,6 +23,13 @@ static void fd_close_handle(int fd) {
   if (fd < 0) return;
   cevf_unregister_sock(fd, CEVF_SOCKEVENT_TYPE_READ);
   close(fd);
+}
+
+static void *tcpsrv_close_sock(int argc, va_list argp) {
+  if (argc < 1) return NULL;
+  int sd = va_arg(argp, int);
+  fd_close_handle(sd);
+  return NULL;
 }
 
 static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
@@ -155,8 +163,9 @@ static void tcpsrv_deinit_1(void) {
   erase_srv_ctx_s(srv, fd_close_handle);
 }
 
-static void mod_pre_init(void) {
+static void mod_tcpsrv_init(void) {
   cevf_mod_add_initialiser(0, tcpsrv_init_1, tcpsrv_deinit_1);
+  cevf_mod_add_procedure_t1(0, tcpsrv_close_sock);
 }
 
-cevf_mod_init(mod_pre_init)
+cevf_mod_init(mod_tcpsrv_init)
