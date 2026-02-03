@@ -1,11 +1,22 @@
+#include <cevf_mod.h>
 #include <errno.h>
 #include <stdio.h>
 
-#include "cevf_mod.h"
 #include "srvctx.h"
-#include "tcp1.h"
+#include "cevf_extras.h"
 
 #define lge(...) fprintf(stderr, __VA_ARGS__)
+#define lg(...) (NULL)
+
+#ifndef CEVFE_TCPSRV_RCV_EVENT_NO
+#define CEVFE_TCPSRV_RCV_EVENT_NO 0
+#endif  // CEVFE_TCPSRV_RCV_EVENT_NO
+#ifndef CEVFE_TCPSRV_DEFAULT_PORT
+#define CEVFE_TCPSRV_DEFAULT_PORT 8081
+#endif  // CEVFE_TCPSRV_DEFAULT_PORT
+#ifndef CEVFE_TCPSRV_READBUF_SIZE
+#define CEVFE_TCPSRV_READBUF_SIZE 4096
+#endif  // CEVFE_TCPSRV_READBUF_SIZE
 
 static void fd_close_handle(int fd) {
   if (fd < 0) return;
@@ -13,20 +24,20 @@ static void fd_close_handle(int fd) {
   close(fd);
 }
 
-static void hij_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
+static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   struct srvread_s *h = (struct srvread_s *)sock_ctx;
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)h->cookie;
-  char readbuf[SRV_READBUF_SIZE];
+  char readbuf[CEVFE_TCPSRV_READBUF_SIZE];
   int nread = read(sd, readbuf, sizeof(readbuf));
   if (nread < 0) {
-    lge("httpread failed: %s\n", strerror(errno));
+    lge("TCPSRV: read failed: %s\n", strerror(errno));
     goto bad;
   } else if (nread == 0) {
     goto end;
   } else {
-    struct sock_toreply_s *rpy = new_sock_toreply_s(readbuf, nread, sd, srvconn);
+    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd);
     if (rpy == NULL) return;
-    cevf_generic_enqueue((void *)rpy, evt_a1_toreply);
+    cevf_generic_enqueue((void *)rpy, CEVFE_TCPSRV_RCV_EVENT_NO);
   }
   return;
 
@@ -37,7 +48,7 @@ end:
   (*h->cb)(h, h->cookie, SRVREAD_EVENT_CLOSE);
 }
 
-static void hij_server_read_cb(struct srvread_s *handle, void *cookie, enum srvread_event e) {
+static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum srvread_event e) {
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)cookie;
   if (e == SRVREAD_EVENT_CLOSE) {
     cevf_unregister_sock(srvconn->fd, CEVF_SOCKEVENT_TYPE_READ);
@@ -45,13 +56,13 @@ static void hij_server_read_cb(struct srvread_s *handle, void *cookie, enum srvr
   }
 }
 
-static struct srv_conn_ctx_s *hij_server_sndrcv_init(struct srv_ctx_s *srv, int fd, struct sockaddr_in *addr) {
+static struct srv_conn_ctx_s *tcpsrv_server_sndrcv_init(struct srv_ctx_s *srv, int fd, struct sockaddr_in *addr) {
   struct srv_conn_ctx_s *srvconn = new_src_conn_ctx_s(srv, fd);
   if (srvconn == NULL) goto fail;
-  struct srvread_s *hread = new_srvread_s(fd, hij_server_read_cb, srvconn);
+  struct srvread_s *hread = new_srvread_s(fd, tcpsrv_server_read_cb, srvconn);
   if (hread == NULL) goto fail;
-  if (cevf_register_sock(fd, CEVF_SOCKEVENT_TYPE_READ, hij_server_read_handler, NULL, hread)) {
-    lge("register read socket failed\n");
+  if (cevf_register_sock(fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_read_handler, NULL, hread)) {
+    lge("TCPSRV: register read socket failed\n");
     goto fail;
   }
 
@@ -65,7 +76,7 @@ fail:
   return NULL;
 }
 
-static void hij_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) {
+static void tcpsrv_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   struct sockaddr_in addr;
   socklen_t addr_len = sizeof(addr);
   struct srv_ctx_s *srv = (struct srv_ctx_s *)eloop_ctx;
@@ -73,16 +84,16 @@ static void hij_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) {
 
   conn = accept(srv->fd, (struct sockaddr *)&addr, &addr_len);
   if (conn < 0) {
-    lge("HTTP: Failed to accept new connection: %s", strerror(errno));
+    lge("TCPSRV: failed to accept new connection: %s", strerror(errno));
     return;
   }
-  printf("HTTP: Connection from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+  lg("TCPSRV: connection from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
-  if (hij_server_sndrcv_init(srv, conn, &addr) == NULL)
+  if (tcpsrv_server_sndrcv_init(srv, conn, &addr) == NULL)
     close(conn);
 }
 
-static struct srv_ctx_s *register_hij_server(int port) {
+static struct srv_ctx_s *tcpsrv_register_tcp_server(int port) {
   struct srv_ctx_s *srv = new_srv_ctx_s();
   if (srv == NULL) return NULL;
 
@@ -101,7 +112,7 @@ static struct srv_ctx_s *register_hij_server(int port) {
 
   if (listen(srv->fd, 10 /* max backlog */) < 0
     || fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0
-    || cevf_register_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ, hij_server_conn_handler, srv, NULL))
+    || cevf_register_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_conn_handler, srv, NULL))
     goto fail;
 
   return srv;
@@ -113,18 +124,22 @@ fail:
 
 static struct srv_ctx_s *srv = NULL;
 
-static int root_init_1(int argc, char *argv[]) {
-  srv = register_hij_server(8081);
+static int tcpsrv_init_1(int argc, char *argv[]) {
+  int port = 0;
+  char *port_str = getenv("CEVF_SRV_PORT");
+  if (port_str) port = atoi(port_str);
+  port = port > 0 && port < 65536 ? port : CEVFE_TCPSRV_DEFAULT_PORT;
+  srv = tcpsrv_register_tcp_server(port);
   if (srv == NULL) return -1;
   return 0;
 }
 
-static void root_deinit_1(void) {
+static void tcpsrv_deinit_1(void) {
   erase_srv_ctx_s(srv, fd_close_handle);
 }
 
 static void mod_pre_init(void) {
-  cevf_mod_add_initialiser(0, root_init_1, root_deinit_1);
+  cevf_mod_add_initialiser(0, tcpsrv_init_1, tcpsrv_deinit_1);
 }
 
 cevf_mod_init(mod_pre_init)

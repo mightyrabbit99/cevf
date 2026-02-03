@@ -12,9 +12,6 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
-#define SRV_READBUF_SIZE 100
-#define SRV_WRITEBUF_SIZE 100
-
 inline static void *zalloc(size_t sz) {
   return calloc(1, sz);
 }

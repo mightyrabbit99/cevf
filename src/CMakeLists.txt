@@ -20,6 +20,7 @@ target_sources(cevf
     BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
       cevf.h
       cevf_mod.h
+      cevf_extras.h
 )
 target_include_directories(cevf
   PRIVATE
@@ -82,6 +83,27 @@ target_include_directories(cevfd
 )
 install(TARGETS cevfd
   DESTINATION bin
+)
+
+add_library(cevfm-tcpsrv SHARED)
+set_target_properties(cevfm-tcpsrv PROPERTIES PREFIX "")
+set_target_properties(cevfm-tcpsrv PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_compile_options(cevfm-tcpsrv PRIVATE -rdynamic)
+target_sources(cevfm-tcpsrv
+  PRIVATE
+    extras/cevfm_tcpsrv.c
+)
+target_link_libraries(cevfm-tcpsrv
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfm-tcpsrv
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+)
+install(TARGETS cevfm-tcpsrv
+  LIBRARY DESTINATION lib/cevfms/
 )
 
 if(BUILD_CEVF_LUA)
