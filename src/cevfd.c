@@ -18,6 +18,10 @@
 #ifndef CEVF_DEFAULT_MOD_PATH
 #define CEVF_DEFAULT_MOD_PATH "/usr/lib/cevfms"
 #endif  // CEVF_DEFAULT_MOD_PATH
+#ifndef CEVFM_PREFIX
+#define CEVFM_PREFIX "cevfm"
+#endif  // CEVFM_PREFIX
+
 #define lge(...) fprintf(stderr, __VA_ARGS__)
 #define lg(...)                                                 \
   do {                                                          \
@@ -42,8 +46,8 @@ static int _load_mod_modarr(const char *mpath, void *ctx) {
   char **it = NULL;
   cvector_for_each_in(it, modarr->modnames) {
     if (*it == NULL) continue;
-    char tmp[strlen(mpath) + strlen(*it) + 10];
-    snprintf(tmp, sizeof(tmp), "%s/%s.so", mpath, *it);
+    char tmp[strlen(mpath) + strlen(CEVFM_PREFIX) + strlen(*it) + 10];
+    snprintf(tmp, sizeof(tmp), "%s/%s-%s.so", mpath, CEVFM_PREFIX, *it);
     void *a = dlopen(tmp, RTLD_LAZY | RTLD_DEEPBIND);
     if (a == NULL) continue;
     free(*it);
