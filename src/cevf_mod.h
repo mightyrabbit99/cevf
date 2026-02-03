@@ -132,8 +132,8 @@ static void __attribute__((destructor)) _cevf_mod_deinit(void) {
 
 #ifdef CEVF_STATIC_INIT
 #define cevf_mod_init(function)                                                                               \
-  __attribute__((section(".init_array"))) static void *_cevf_mod_init_##function = &cevf_mod_init_##function; \
-  static void cevf_mod_init_##function(int argc, char *argv[]) { function(argc, argv); }
+  static void cevf_mod_init_##function(int argc, char *argv[]) { function(); }\
+  __attribute__((section(".init_array"))) static void *_cevf_mod_init_##function = &cevf_mod_init_##function;
 #else  // CEVF_STATIC_INIT
 #define cevf_mod_init(function) \
   static void __attribute__((constructor)) cevf_mod_init_##function(void) { function(); }

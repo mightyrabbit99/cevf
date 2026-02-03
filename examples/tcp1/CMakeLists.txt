@@ -17,3 +17,18 @@ target_include_directories(cevfm-tcp1-reply1
 install(TARGETS cevfm-tcp1-reply1
   LIBRARY DESTINATION lib/cevfms/
 )
+
+add_executable(tcp1)
+set_target_properties(tcp1 PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(tcp1
+  PRIVATE
+    tcp1_reply1.c
+)
+target_link_libraries(tcp1
+  PUBLIC
+    cevf-static
+    cevfm-tcpsrv-object
+)
+install(TARGETS tcp1
+  DESTINATION bin
+)

@@ -122,12 +122,29 @@ fail:
   return NULL;
 }
 
+static int port = 0;
+
+static int parse_flags(int argc, char **argv) {
+  int c;
+  while ((c = getopt(argc, argv, "p:")) != -1) {
+    switch (c) {
+      case 'p':
+        port = atoi(optarg);
+        break;
+    }
+  }
+  return 0;
+}
+
 static struct srv_ctx_s *srv = NULL;
 
 static int tcpsrv_init_1(int argc, char *argv[]) {
-  int port = 0;
-  char *port_str = getenv("CEVF_SRV_PORT");
-  if (port_str) port = atoi(port_str);
+  if (cevf_is_static()) {
+    parse_flags(argc, argv);
+  } else {
+    char *port_str = getenv("CEVF_SRV_PORT");
+    if (port_str) port = atoi(port_str);
+  }
   port = port > 0 && port < 65536 ? port : CEVFE_TCPSRV_DEFAULT_PORT;
   srv = tcpsrv_register_tcp_server(port);
   if (srv == NULL) return -1;
