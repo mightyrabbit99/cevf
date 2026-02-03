@@ -106,6 +106,25 @@ install(TARGETS cevfm-tcpsrv
   LIBRARY DESTINATION lib/cevfms/
 )
 
+add_library(cevfm-tcpsrv-static STATIC)
+set_target_properties(cevfm-tcpsrv-static PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(cevfm-tcpsrv-static PROPERTIES PREFIX "")
+set_target_properties(cevfm-tcpsrv-static PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_compile_options(cevfm-tcpsrv-static PRIVATE -rdynamic)
+target_sources(cevfm-tcpsrv-static
+  PRIVATE
+    extras/cevfm_tcpsrv.c
+)
+target_link_libraries(cevfm-tcpsrv-static
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfm-tcpsrv-static
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+)
+
 if(BUILD_CEVF_LUA)
 add_library(lua STATIC IMPORTED)
 set_target_properties(lua PROPERTIES IMPORTED_LOCATION "${LUA_LIBRARY}")
@@ -131,5 +150,26 @@ target_include_directories(cevfm-luamac
 )
 install(TARGETS cevfm-luamac
   LIBRARY DESTINATION lib/cevfms/
+)
+
+add_library(cevfm-luamac-static SHARED)
+set_target_properties(cevfm-luamac-static PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(cevfm-luamac-static PROPERTIES PREFIX "")
+set_target_properties(cevfm-luamac-static PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_compile_options(cevfm-luamac-static PRIVATE -rdynamic)
+target_sources(cevfm-luamac-static
+  PRIVATE
+    extras/cevfm_luamac.c
+)
+target_link_libraries(cevfm-luamac-static
+  PUBLIC
+    cevf
+    lua
+)
+target_include_directories(cevfm-luamac-static
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+    ${LUA_INCLUDE_DIR}
 )
 endif()
