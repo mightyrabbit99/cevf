@@ -383,9 +383,14 @@ static int luamac_generic_evhandle(const uint8_t *data, size_t datalen, cevf_evt
 static int luamac_init(int argc, char *argv[]) {
   int ret;
   char *env_str;
-  env_str = getenv("CEVF_LUAMOD_PATH");
-  env_str = env_str ? env_str : default_cevf_loamod_path;
-  if (env_str == NULL) return 0;
+  if (cevf_is_static()) {
+    env_str = default_cevf_loamod_path;
+  } else {
+    env_str = getenv("CEVF_LUAMOD_PATH");
+    env_str = env_str ? env_str : default_cevf_loamod_path;
+  }
+  if (env_str == NULL) return 1;
+  
   L = luaL_newstate();
   pthread_mutex_init(&L_mutex, NULL);
   luaL_openlibs(L);
