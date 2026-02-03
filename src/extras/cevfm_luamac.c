@@ -414,7 +414,7 @@ static int luamac_init(int argc, char *argv[]) {
 }
 
 static void luamac_deinit(void) {
-  lua_close(L);
+  if (L) lua_close(L);
   pthread_mutex_destroy(&L_mutex);
   delete_m_typ_modnamelst(m_evtyp_modnamelst);
   pthread_mutex_destroy(&m_evtyp_modnamelst_mutex);
