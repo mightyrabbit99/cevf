@@ -32,6 +32,11 @@ static void *tcpsrv_close_sock(int argc, va_list argp) {
   return NULL;
 }
 
+static void tcpsrv_close_conn(struct srv_conn_ctx_s *srvconn) {
+  fd_close_handle(srvconn->fd);
+  erase_srv_conn_ctx_s(srvconn);
+}
+
 static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   struct srvread_s *h = (struct srvread_s *)sock_ctx;
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)h->cookie;
@@ -43,7 +48,7 @@ static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) 
   } else if (nread == 0) {
     goto end;
   } else {
-    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd);
+    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd, (cevf_tcpsrv_on_close_t)tcpsrv_close_conn, srvconn);
     if (rpy == NULL) return;
     cevf_generic_enqueue((void *)rpy, CEVFE_TCPSRV_RCV_EVENT_NO);
   }
@@ -59,8 +64,7 @@ end:
 static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum srvread_event e) {
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)cookie;
   if (e == SRVREAD_EVENT_CLOSE) {
-    cevf_unregister_sock(srvconn->fd, CEVF_SOCKEVENT_TYPE_READ);
-    erase_srv_conn_ctx_s(srvconn);
+    tcpsrv_close_conn(srvconn);
   }
 }
 
@@ -165,7 +169,7 @@ static void tcpsrv_deinit_1(void) {
 
 static void mod_tcpsrv_init(void) {
   cevf_mod_add_initialiser(0, tcpsrv_init_1, tcpsrv_deinit_1);
-  cevf_mod_add_procedure_t1(0, tcpsrv_close_sock);
+  // cevf_mod_add_procedure_t1(0, tcpsrv_close_sock);
 }
 
 cevf_mod_init(mod_tcpsrv_init)
