@@ -16,10 +16,17 @@
   } while (0)
 
 #define CEVF_LUA_MOD_MAIN_FUNCTOIN_NAME "cevf_main"
+#define CEVF_LUA_MOD_INIT_FUNCTOIN_NAME "cevf_init"
 #define CEVF_LUA_MOD_EVARR_NAME "cevf_events"
 #define CEVF_LUA_MOD_PCDNO_NAME "cevf_procedure_no"
-#define CEVF_LUA_MOD_ENQF_NAME "cevf_enqueue"
-#define CEVF_LUA_MOD_EXECPCD_NAME "cevf_exec_procedure"
+#define CEVF_LUA_MODF_ENQF_NAME "cevf_enqueue"
+#define CEVF_LUA_MODF_EXECPCD_NAME "cevf_exec_procedure"
+
+#ifndef DEFAULT_CEVF_LUAMOD_PATH
+#define DEFAULT_CEVF_LUAMOD_PATH NULL
+#endif
+
+static char *default_cevf_loamod_path = DEFAULT_CEVF_LUAMOD_PATH;
 
 static lua_State *L = NULL;
 static pthread_mutex_t L_mutex;
@@ -65,11 +72,18 @@ static inline int _foreach_filenode_sorted(const char *path, int (*f)(const char
   struct _fnode_arr_s arr1 = (struct _fnode_arr_s){0};
   _foreach_filenode(path, _add_fnode_to_array, (void *)&arr1);
   qsort(arr1.arr, arr1.arrlen, sizeof(arr1.arr[0]), pstrcmp);
+
+  int ret = 0;
   for (size_t i = 0; i < arr1.arrlen; i++) {
-    f(arr1.arr[i], ctx);
+    ret = f(arr1.arr[i], ctx);
+    if (ret) break;
+  }
+
+  for (size_t i = 0; i < arr1.arrlen; i++) {
     free(arr1.arr[i]);
   }
   free(arr1.arr);
+  return ret;
 }
 
 static int _enqueue_f(lua_State *L) {
@@ -269,8 +283,35 @@ static inline int _load_lua_mod_register_pcd(lua_State *L, const char *_modname)
   return 1;
 }
 
+static inline int _load_lua_mod_exec_init(lua_State *L, int argc, char *argv[]) {
+  lua_getfield(L, -1, CEVF_LUA_MOD_INIT_FUNCTOIN_NAME);
+  if (!lua_isfunction(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+
+  for (int i = 0; i < argc; i++) {
+    lua_pushstring(L, argv[i]);
+  }
+	lua_call(L, argc, 1);
+  if (!lua_isnumber(L, -1)) {
+    lua_pop(L, 1);
+    return 0;
+  }
+  int res = lua_tonumber(L, -1);
+  lua_pop(L, 1);
+  return res;
+}
+
+struct _load_luamod_s {
+  const char *luamod_path;
+  int argc;
+  char **argv;
+};
+
 static int load_lua_mod(const char *file, void *ctx) {
-  char *luamod_path = (char *)ctx;
+  struct _load_luamod_s *lluamod = (struct _load_luamod_s *)ctx;
+  const char *luamod_path = lluamod->luamod_path;
   char *p, *modname = NULL;
   int ret = 0, added = 0;
 
@@ -285,6 +326,10 @@ static int load_lua_mod(const char *file, void *ctx) {
     lua_pop(L, 1);
     return 0;
   }
+
+  ret = _load_lua_mod_exec_init(L, lluamod->argc, lluamod->argv);
+  if (ret) return ret;
+
   lua_getfield(L, -1, CEVF_LUA_MOD_MAIN_FUNCTOIN_NAME);
   if (!lua_isfunction(L, -1)) {
     lua_pop(L, 2);
@@ -336,22 +381,31 @@ static int luamac_generic_evhandle(const uint8_t *data, size_t datalen, cevf_evt
 }
 
 static int luamac_init(int argc, char *argv[]) {
+  int ret;
   char *env_str;
   env_str = getenv("CEVF_LUAMOD_PATH");
+  env_str = env_str ? env_str : default_cevf_loamod_path;
   if (env_str == NULL) return 0;
   L = luaL_newstate();
   pthread_mutex_init(&L_mutex, NULL);
   luaL_openlibs(L);
   lua_pushcfunction(L, _enqueue_f);
-  lua_setglobal(L, CEVF_LUA_MOD_ENQF_NAME);
+  lua_setglobal(L, CEVF_LUA_MODF_ENQF_NAME);
   lua_pushcfunction(L, _execpcd_f);
-  lua_setglobal(L, CEVF_LUA_MOD_EXECPCD_NAME);
+  lua_setglobal(L, CEVF_LUA_MODF_EXECPCD_NAME);
   m_evtyp_modnamelst = hashmap_create();
   pthread_mutex_init(&m_evtyp_modnamelst_mutex, NULL);
   m_pcdno_modname = hashmap_create();
   pthread_mutex_init(&m_pcdno_modname_mutex, NULL);
-  _foreach_filenode_sorted(env_str, load_lua_mod, env_str);
-  return 0;
+
+  struct _load_luamod_s lluamod = (struct _load_luamod_s){
+    .luamod_path = env_str,
+    .argc = argc,
+    .argv = argv,
+  };
+
+  ret = _foreach_filenode_sorted(env_str, load_lua_mod, &lluamod);
+  return ret;
 }
 
 static void luamac_deinit(void) {
