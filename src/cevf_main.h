@@ -11,6 +11,16 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifndef CEVF_CM_THR_CNT
+#define CEVF_CM_THR_CNT 2
+#endif  // CEVF_CM_THR_CNT
+#ifndef CEVF_DATA_MQ_SZ
+#define CEVF_DATA_MQ_SZ 10
+#endif  // CEVF_DATA_MQ_SZ
+#ifndef CEVF_CTRL_MQ_SZ
+#define CEVF_CTRL_MQ_SZ 10
+#endif  // CEVF_CTRL_MQ_SZ
+
 struct cevf_initialiser_s *_cevf_ini_arr[CEVF_INI_PRIO_MAX];
 cevf_asz_t _cevf_ini_arr_sz[CEVF_INI_PRIO_MAX];
 struct cevf_producer_s *_cevf_pd_arr = NULL;
@@ -23,6 +33,10 @@ struct cevf_procedure_t1_s *_cevf_pcd_t1_arr;
 cevf_asz_t _cevf_pcd_t1_arr_sz = 0;
 struct cevf_procedure_t2_s *_cevf_pcd_t2_arr;
 cevf_asz_t _cevf_pcd_t2_arr_sz = 0;
+
+uint8_t _cevf_cm_thr_cnt = CEVF_CM_THR_CNT;
+size_t _cevf_data_mq_sz = CEVF_DATA_MQ_SZ;
+size_t _cevf_ctrl_mq_sz = CEVF_CTRL_MQ_SZ;
 
 #ifdef CEVF_STATIC_LIB
 uint8_t _cevf_is_static_linked = 1;
@@ -37,7 +51,8 @@ static inline void cevf_add_procedures(void) {
     cevf_add_procedure_t2(_cevf_pcd_t2_arr[i]);
 }
 
-#define cevf_start(argc, argv, _cm_thr_cnt, _ctrlmqsz)              \
+#define cevf_init() cevf_init(_cevf_data_mq_sz)
+#define cevf_start(argc, argv)                                      \
   cevf_run(argc, argv,                                              \
            (struct cevf_run_arg_s){.ini_arr = _cevf_ini_arr,        \
                                    .ini_num = _cevf_ini_arr_sz,     \
@@ -47,8 +62,8 @@ static inline void cevf_add_procedures(void) {
                                    .cm_t1_num = _cevf_cm_t1_arr_sz, \
                                    .cm_t2_arr = _cevf_cm_t2_arr,    \
                                    .cm_t2_num = _cevf_cm_t2_arr_sz, \
-                                   .cm_thr_cnt = _cm_thr_cnt,       \
-                                   .ctrlmqsz = _ctrlmqsz})
+                                   .cm_thr_cnt = _cevf_cm_thr_cnt,  \
+                                   .ctrlmqsz = _cevf_ctrl_mq_sz})
 static void __attribute__((destructor)) _cevf_main_des(void) {
   for (size_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
     free(_cevf_ini_arr[i]);

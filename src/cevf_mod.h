@@ -28,6 +28,9 @@ extern struct cevf_procedure_t2_s *_cevf_pcd_t2_arr;
 extern cevf_asz_t _cevf_pcd_t2_arr_sz ;
 
 extern uint8_t _cevf_is_static_linked;
+extern uint8_t _cevf_cm_thr_cnt;
+extern size_t _cevf_data_mq_sz;
+extern size_t _cevf_ctrl_mq_sz;
 
 static struct cevf_initialiser_s *_cevf_tmp_ini_p;
 static struct cevf_producer_s *_cevf_tmp_pd_p;
@@ -160,6 +163,9 @@ static void __attribute__((destructor)) _cevf_mod_deinit(void) {
   _cevf_submod_arr_sz = 0;
 }
 #endif  // CEVF_ALLOW_LOAD_SUBMOD
+#define cevf_mod_set_consumer_thread_count(count) (_cevf_cm_thr_cnt = (count))
+#define cevf_mod_set_data_mq_size(size) (_cevf_data_mq_sz = (size))
+#define cevf_mod_set_ctrl_mq_size(size) (_cevf_ctrl_mq_sz = (size))
 #define cevf_is_static() (_cevf_is_static_linked == 1)
 
 #ifdef CEVF_STATIC_INIT

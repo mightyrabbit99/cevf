@@ -2,3 +2,4 @@ BasedOnStyle: Google
 ColumnLimit: 200
 TabWidth: 2
 AllowShortFunctionsOnASingleLine: None
+AllowShortLoopsOnASingleLine: false

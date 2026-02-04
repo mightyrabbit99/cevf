@@ -70,34 +70,32 @@ static inline int _for_each_item_in_strarr(const char *strarr, const char *sep, 
 static void _process_terminate(int sig) { cevf_terminate(); }
 
 int main(int argc, char *argv[]) {
+#ifndef CEVF_STATIC_LIB
   char *env_str;
   env_str = getenv("CEVF_CM_THR_CNT");
-  uint8_t cm_thr_cnt = 0;
   if (env_str) {
-    cm_thr_cnt = (uint8_t)atoi(env_str);
-    if (cm_thr_cnt == 0) {
+    _cevf_cm_thr_cnt = (uint8_t)atoi(env_str);
+    if (_cevf_cm_thr_cnt == 0) {
       lge("Error parsing CEVF_CM_THR_CNT\n");
     }
   }
 
-  size_t data_mq_sz = 0;
   env_str = getenv("CEVF_DATA_MQ_SZ");
   if (env_str) {
-    data_mq_sz = (size_t)atoi(env_str);
-    if (data_mq_sz == 0) {
+    _cevf_data_mq_sz = (size_t)atoi(env_str);
+    if (_cevf_data_mq_sz == 0) {
       lge("Error parsing CEVF_DATA_MQ_SZ\n");
     }
   }
 
-  size_t ctrl_mq_sz = 0;
   env_str = getenv("CEVF_CTRL_MQ_SZ");
   if (env_str) {
-    ctrl_mq_sz = (size_t)atoi(env_str);
-    if (ctrl_mq_sz == 0) {
+    _cevf_ctrl_mq_sz = (size_t)atoi(env_str);
+    if (_cevf_ctrl_mq_sz == 0) {
       lge("Error parsing CEVF_CTRL_MQ_SZ\n");
     }
   }
-#ifndef CEVF_STATIC_LIB
+
   struct _mod_arr_s modarr = (struct _mod_arr_s){0};
   env_str = getenv("CEVF_MODS");
   if (env_str) {
@@ -110,9 +108,9 @@ int main(int argc, char *argv[]) {
 #endif  // CEVF_STATIC_LIB
 
   cevf_register_signal_terminate(_process_terminate, NULL);
-  if (cevf_init(data_mq_sz)) return -1;
+  if (cevf_init()) return -1;
   cevf_add_procedures();
-  int res = cevf_start(argc, argv, cm_thr_cnt, ctrl_mq_sz);
+  int res = cevf_start(argc, argv);
   cevf_deinit();
 
 #ifndef CEVF_STATIC_LIB
