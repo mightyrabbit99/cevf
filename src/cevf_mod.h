@@ -17,9 +17,12 @@
 #define CEVF_PASTER(x, y) x##_##y
 #define CEVF_CONCAT(x, y) CEVF_PASTER(x, y)
 
-#define CEVF_THFDECL(fname, argname) void *CEVF_THFNAME(fname)(void *argname)
+#ifndef CEVF_THF_ARGNAME
+#define CEVF_THF_ARGNAME argname__
+#endif  // CEVF_THF_ARGNAME
+#define CEVF_THFDECL(fname) void *CEVF_THFNAME(fname)(void *CEVF_THF_ARGNAME)
 #define CEVF_THFNAME(fname) CEVF_CONCAT(fname, th)
-#define CEVF_THENDDECL(fname, argname) void CEVF_THENDNAME(fname)(void *argname)
+#define CEVF_THENDDECL(fname) void CEVF_THENDNAME(fname)(void *CEVF_THF_ARGNAME)
 #define CEVF_THENDNAME(fname) CEVF_CONCAT(fname, terminate)
 
 extern struct cevf_initialiser_s *_cevf_ini_arr[CEVF_INI_PRIO_MAX];

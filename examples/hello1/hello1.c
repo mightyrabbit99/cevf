@@ -50,11 +50,11 @@ static int parse_flags(int argc, char **argv) {
 
 static cevf_mq_t pcap_mq = NULL;
 static char *pcap_string = "pcap_string";
-static CEVF_THENDDECL(a1_pcap_loop, arg1) {
+static CEVF_THENDDECL(a1_pcap_loop) {
   cevf_qmsg_enq(pcap_mq, NULL);
 }
 
-static CEVF_THFDECL(a1_pcap_loop, arg1) {
+static CEVF_THFDECL(a1_pcap_loop) {
   int i = 0;
   uint8_t *data;
   size_t datalen = 30;
