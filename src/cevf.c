@@ -28,6 +28,7 @@
  */
 
 #include "cevf.h"
+#include "cevf_main_pre.h"
 
 #include <assert.h>
 #include <errno.h>

@@ -14,6 +14,14 @@
 #include <dlfcn.h>
 #endif  // CEVF_ALLOW_LOAD_SUBMOD
 
+#define CEVF_PASTER(x, y) x##_##y
+#define CEVF_CONCAT(x, y) CEVF_PASTER(x, y)
+
+#define CEVF_THFDECL(fname, argname) void *CEVF_THFNAME(fname)(void *argname)
+#define CEVF_THFNAME(fname) CEVF_CONCAT(fname, th)
+#define CEVF_THENDDECL(fname, argname) void CEVF_THENDNAME(fname)(void *argname)
+#define CEVF_THENDNAME(fname) CEVF_CONCAT(fname, terminate)
+
 extern struct cevf_initialiser_s *_cevf_ini_arr[CEVF_INI_PRIO_MAX];
 extern cevf_asz_t _cevf_ini_arr_sz[CEVF_INI_PRIO_MAX];
 extern struct cevf_producer_s *_cevf_pd_arr;

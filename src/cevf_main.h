@@ -8,6 +8,7 @@
 #define CEVF_MAIN_H
 
 #include <cevf.h>
+#include <cevf_main_pre.h>
 #include <stdint.h>
 #include <stdlib.h>
 

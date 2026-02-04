@@ -15,7 +15,11 @@
 #define CEVF_VAARGC(...) CEVF_ELEVENTH_ARGUMENT(dummy, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 
-typedef enum { CEVF_SOCKEVENT_TYPE_READ, CEVF_SOCKEVENT_TYPE_WRITE, CEVF_SOCKEVENT_TYPE_EXCEPTION } cevf_sockevent_t;
+typedef enum {
+  CEVF_SOCKEVENT_TYPE_READ,
+  CEVF_SOCKEVENT_TYPE_WRITE,
+  CEVF_SOCKEVENT_TYPE_EXCEPTION,
+} cevf_sockevent_t;
 
 typedef enum {
   cevf_qmsg2_res_error = -1,
@@ -39,20 +43,13 @@ typedef void (*cevf_sock_handler_t)(int sock, void *arg1, void *arg2);
 typedef void (*cevf_timeout_handler_t)(void *ctx);
 typedef void (*cevf_signal_handler)(int sig);
 
-#define CEVF_PASTER(x, y) x##_##y
-#define CEVF_CONCAT(x, y) CEVF_PASTER(x, y)
-
-#ifndef CEVF_EV_DTYP
-#define CEVF_EV_DTYP uint16_t
-#endif  // CEVF_EV_DTYP
-typedef CEVF_EV_DTYP cevf_evtyp_t;
+typedef uint16_t cevf_evtyp_t;
 typedef uint16_t cevf_asz_t;
-#ifndef CEVF_PCDNO_DTYP
-#define CEVF_PCDNO_DTYP uint16_t
-#endif // CEVF_PCDNO_DTYP
-typedef CEVF_PCDNO_DTYP cevf_pcdno_t;
+typedef uint16_t cevf_pcdno_t;
 typedef void *cevf_mq_t;
 typedef uint8_t cevf_producer_id_t;
+#define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t) - 1)
+
 typedef int (*cevf_consumer_handler_t1_t)(void *data, cevf_evtyp_t evtyp);
 typedef int (*cevf_consumer_handler_t2_t)(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 
@@ -94,19 +91,6 @@ struct cevf_procedure_t2_s {
   void *ctx;
 };
 
-struct cevf_run_arg_s {
-  struct cevf_initialiser_s **ini_arr;
-  cevf_asz_t *ini_num;
-  struct cevf_producer_s *pd_arr;
-  cevf_asz_t pd_num;
-  struct cevf_consumer_t1_s *cm_t1_arr;
-  cevf_asz_t cm_t1_num;
-  struct cevf_consumer_t2_s *cm_t2_arr;
-  cevf_asz_t cm_t2_num;
-  uint8_t cm_thr_cnt;
-  size_t ctrlmqsz;
-};
-
 #define CEVF_INI_PRIO_MAX 100
 
 int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd);
@@ -121,8 +105,6 @@ cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
-int cevf_init(size_t evqsz);
-int cevf_run(int argc, char *argv[], struct cevf_run_arg_s arg);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);
 cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf);
@@ -131,21 +113,13 @@ cevf_qmsg2_res_t cevf_qmsg_poll_nointr(cevf_mq_t mt, void *buf, time_t tv_sec, l
 void cevf_qmsg_del_mq(cevf_mq_t mt);
 int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handler, void *arg1, void *arg2);
 void cevf_unregister_sock(int sock, cevf_sockevent_t typ);
-int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data);
 int cevf_register_timeout(time_t tv_sec, long tv_nsec, cevf_timeout_handler_t handler, void *ctx);
 int cevf_cancel_timeout(cevf_timeout_handler_t handler, void *ctx);
 int cevf_cancel_timeout_one(cevf_timeout_handler_t handler, void *ctx, struct timespec *remaining);
 int cevf_is_timeout_registered(cevf_timeout_handler_t handler, void *ctx);
 void cevf_terminate(void);
 void cevf_log_set(cevf_log_level_t level, FILE *stream);
-void cevf_deinit(void);
 
-#define CEVF_MON_INTERVAL 1
-#define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t) - 1)
-#define CEVF_THFDECL(fname, argname) void *CEVF_THFNAME(fname)(void *argname)
-#define CEVF_THFNAME(fname) CEVF_CONCAT(fname, th)
-#define CEVF_THENDDECL(fname, argname) void CEVF_THENDNAME(fname)(void *argname)
-#define CEVF_THENDNAME(fname) CEVF_CONCAT(fname, terminate)
 #define cevf_add_producer(_thname, _context, _stack_size) \
   _cevf_add_producer((struct cevf_producer_s){            \
       .thstart = CEVF_THFNAME(_thname),                   \
