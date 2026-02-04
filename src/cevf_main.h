@@ -37,7 +37,7 @@ static inline void cevf_add_procedures(void) {
     cevf_add_procedure_t2(_cevf_pcd_t2_arr[i]);
 }
 
-#define cevf_start(argc, argv, _cm_thr_cnt)                         \
+#define cevf_start(argc, argv, _cm_thr_cnt, _ctrlmqsz)              \
   cevf_run(argc, argv,                                              \
            (struct cevf_run_arg_s){.ini_arr = _cevf_ini_arr,        \
                                    .ini_num = _cevf_ini_arr_sz,     \
@@ -47,7 +47,8 @@ static inline void cevf_add_procedures(void) {
                                    .cm_t1_num = _cevf_cm_t1_arr_sz, \
                                    .cm_t2_arr = _cevf_cm_t2_arr,    \
                                    .cm_t2_num = _cevf_cm_t2_arr_sz, \
-                                   .cm_thr_cnt = _cm_thr_cnt})
+                                   .cm_thr_cnt = _cm_thr_cnt,       \
+                                   .ctrlmqsz = _ctrlmqsz})
 static void __attribute__((destructor)) _cevf_main_des(void) {
   for (size_t i = 0; i < CEVF_INI_PRIO_MAX; i++) {
     free(_cevf_ini_arr[i]);

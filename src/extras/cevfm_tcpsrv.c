@@ -38,7 +38,7 @@ static void tcpsrv_close_conn(struct srv_conn_ctx_s *srvconn) {
 }
 
 static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
-  struct srvread_s *h = (struct srvread_s *)sock_ctx;
+  struct srvread_s *h = (struct srvread_s *)eloop_ctx;
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)h->cookie;
   char readbuf[CEVFE_TCPSRV_READBUF_SIZE];
   int nread = read(sd, readbuf, sizeof(readbuf));
@@ -68,12 +68,12 @@ static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum s
   }
 }
 
-static struct srv_conn_ctx_s *tcpsrv_server_sndrcv_init(struct srv_ctx_s *srv, int fd, struct sockaddr_in *addr) {
+static struct srv_conn_ctx_s *tcpsrv_server_sndrcv_init(struct srv_ctx_s *srv, int fd) {
   struct srv_conn_ctx_s *srvconn = new_src_conn_ctx_s(srv, fd);
   if (srvconn == NULL) goto fail;
   struct srvread_s *hread = new_srvread_s(fd, tcpsrv_server_read_cb, srvconn);
   if (hread == NULL) goto fail;
-  if (cevf_register_sock(fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_read_handler, NULL, hread)) {
+  if (cevf_register_sock(fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_read_handler, hread, NULL)) {
     lge("TCPSRV: register read socket failed\n");
     goto fail;
   }
@@ -96,12 +96,12 @@ static void tcpsrv_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) 
 
   conn = accept(srv->fd, (struct sockaddr *)&addr, &addr_len);
   if (conn < 0) {
-    lge("TCPSRV: failed to accept new connection: %s", strerror(errno));
+    lge("TCPSRV: failed to accept new connection: %s\n", strerror(errno));
     return;
   }
   lg("TCPSRV: connection from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
-  if (tcpsrv_server_sndrcv_init(srv, conn, &addr) == NULL)
+  if (tcpsrv_server_sndrcv_init(srv, conn) == NULL)
     close(conn);
 }
 

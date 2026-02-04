@@ -48,13 +48,13 @@
 #include "timespec.h"
 
 /////////////////////////////////////
-#define CEVF_CONSUMER_STACKSIZE 0
-#define CEVF_CTRL_MQ_SZ 2
 #define lge(...) fprintf(stderr, __VA_ARGS__)
 
-// TODO
-#define CEVF_DATA_MQ_SZ 10
+#define CEVF_DEFAULT_CTRL_MQ_SZ 10
+#define CEVF_DEFAULT_DATA_MQ_SZ 10
+#define CEVF_DEFAULT_CM_THR_CNT 2
 #define CEVF_TIMEOUT_HP_SZ 10
+#define CEVF_CONSUMER_STACKSIZE 0
 
 static inline cevf_qmsg2_res_t conv_qmsgres_res2(qmsg2_res_t typ) {
   switch (typ) {
@@ -199,7 +199,9 @@ static ssize_t cevf_generic_dequeue(uint8_t **data, cevf_evtyp_t *evtyp, uint8_t
   return datalen;
 }
 
-static int cevf_generic_enqueue_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) { return cevf_generic_enqueue(data, evtyp); }
+static int cevf_generic_enqueue_1(uint8_t *data, size_t datalen, cevf_evtyp_t evtyp, void *context) {
+  return cevf_generic_enqueue(data, evtyp);
+}
 
 struct _handle_ev_farr_s {
   cevf_consumer_typ_t typ;
@@ -241,7 +243,9 @@ static inline int _handle_event(hashmap *m_evtyp_handler, uint8_t *data, size_t 
   return res;
 }
 
-static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) { _cevf_generic_enq(NULL, CEVF_RESERVED_EV_THEND, _cevf_evq_enqueue); }
+static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) {
+  _cevf_generic_enq(NULL, CEVF_RESERVED_EV_THEND, _cevf_evq_enqueue);
+}
 
 static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
   int ret = 0;
@@ -318,7 +322,9 @@ cevf_producer_id_t _cevf_add_producer(struct cevf_producer_s pd) {
   });
 }
 
-int cevf_rm_producer(cevf_producer_id_t id) { return ev_rm_th((ev_th_id_t)id); }
+int cevf_rm_producer(cevf_producer_id_t id) {
+  return ev_rm_th((ev_th_id_t)id);
+}
 
 static hashmap *m_pcdno_handler_t1 = NULL;
 static pthread_mutex_t m_pcdno_handler_t1_mutex;
@@ -457,20 +463,30 @@ int cevf_rm_procedure_t2(cevf_pcdno_t pcdno) {
 
 /////////////////////////
 
-cevf_mq_t cevf_qmsg_new_mq(size_t sz) { return (cevf_mq_t)qmsg2_new_mq(sz); }
+cevf_mq_t cevf_qmsg_new_mq(size_t sz) {
+  return (cevf_mq_t)qmsg2_new_mq(sz);
+}
 
 int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
   if (mt == NULL) return cevf_qmsg2_res_error;
   return conv_qmsgres_res2(qmsg2_enq((struct qmsg2_s *)mt, item));
 }
 
-cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf) { return conv_qmsgres_res2(qmsg2_deq((struct qmsg2_s *)mt, buf)); }
+cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf) {
+  return conv_qmsgres_res2(qmsg2_deq((struct qmsg2_s *)mt, buf));
+}
 
-cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) { return conv_qmsgres_res2(qmsg2_poll((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec)); }
+cevf_qmsg2_res_t cevf_qmsg_poll(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) {
+  return conv_qmsgres_res2(qmsg2_poll((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec));
+}
 
-cevf_qmsg2_res_t cevf_qmsg_poll_nointr(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) { return conv_qmsgres_res2(qmsg2_poll_nointr((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec)); }
+cevf_qmsg2_res_t cevf_qmsg_poll_nointr(cevf_mq_t mt, void *buf, time_t tv_sec, long tv_nsec) {
+  return conv_qmsgres_res2(qmsg2_poll_nointr((struct qmsg2_s *)mt, buf, tv_sec, tv_nsec));
+}
 
-void cevf_qmsg_del_mq(cevf_mq_t mt) { qmsg2_del_mq((struct qmsg2_s *)mt); }
+void cevf_qmsg_del_mq(cevf_mq_t mt) {
+  qmsg2_del_mq((struct qmsg2_s *)mt);
+}
 
 /////////////////////////
 
@@ -491,7 +507,9 @@ int cevf_register_sock(int sock, cevf_sockevent_t typ, cevf_sock_handler_t handl
   return eloop_register_sock(sock, conv_sockevent_eloope(typ), handler, arg1, arg2);
 }
 
-void cevf_unregister_sock(int sock, cevf_sockevent_t typ) { return eloop_unregister_sock(sock, conv_sockevent_eloope(typ)); }
+void cevf_unregister_sock(int sock, cevf_sockevent_t typ) {
+  return eloop_unregister_sock(sock, conv_sockevent_eloope(typ));
+}
 
 int cevf_register_signal_terminate(cevf_signal_handler handler, void *user_data) {
   // eloop_register_signal(SIGINT, (eloop_signal_handler)handler, user_data);
@@ -531,7 +549,9 @@ static int _timeout_cmpf(const void *timeout_a, const void *timeout_b, const voi
   return timespec_cmp(a->tm, b->tm);
 }
 
-static inline int _timeout_exec(struct cevf_timeout_s *tmout) { tmout->handler(tmout->ctx); }
+static inline int _timeout_exec(struct cevf_timeout_s *tmout) {
+  tmout->handler(tmout->ctx);
+}
 
 typedef enum {
   cevf_tmouta_add,
@@ -994,7 +1014,9 @@ int cevf_is_timeout_registered(cevf_timeout_handler_t handler, void *ctx) {
 
 /////////////////////////
 
-static CEVF_EV_THFDECL(cevf_mainloop_f, arg1) { cevf_mainloop(); }
+static CEVF_EV_THFDECL(cevf_mainloop_f, arg1) {
+  cevf_mainloop();
+}
 
 static struct thpillar_s cevf_pillars[] = {{
                                                .thtyp = thtyp_producer,
@@ -1068,11 +1090,11 @@ static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_
   }
 }
 
-int cevf_init(void) {
+int cevf_init(size_t evqsz) {
   pthread_mutex_init(&log_mutex, NULL);
   qmsg2_init();
   if (_timeout_init()) return -1;
-  data_mq = qmsg2_new_mq(CEVF_DATA_MQ_SZ);
+  data_mq = qmsg2_new_mq(evqsz > 1 ? evqsz : CEVF_DEFAULT_DATA_MQ_SZ);
   if (data_mq == QMSG2_ERR_MQ) {
     lge("data_mq init failed\n");
     return -1;
@@ -1087,7 +1109,7 @@ int cevf_run(int argc, char *argv[], struct cevf_run_arg_s a) {
   hashmap *m_evtyp_handler = compile_m_evtyp_handler(a.cm_t1_arr, a.cm_t1_num, a.cm_t2_arr, a.cm_t2_num);
   if (m_evtyp_handler == NULL) goto fail;
 
-  ctrl_mq = qmsg2_new_mq(CEVF_CTRL_MQ_SZ);
+  ctrl_mq = qmsg2_new_mq(a.ctrlmqsz > 1 ? a.ctrlmqsz : CEVF_DEFAULT_CTRL_MQ_SZ);
   if (ctrl_mq == QMSG2_ERR_MQ) {
     lge("ctrl_msq init failed!\n");
     goto fail;
@@ -1095,7 +1117,7 @@ int cevf_run(int argc, char *argv[], struct cevf_run_arg_s a) {
 
   if (ret = cevf_run_initialisers(argc, argv, a.ini_arr, a.ini_num)) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
-  struct thstat_s *thstat = cevf_run_ev(a.pd_arr, a.pd_num, m_evtyp_handler, a.cm_thr_cnt);
+  struct thstat_s *thstat = cevf_run_ev(a.pd_arr, a.pd_num, m_evtyp_handler, a.cm_thr_cnt > 0 ? a.cm_thr_cnt : CEVF_DEFAULT_CM_THR_CNT);
   if (cevf_register_sock_cnt > 0)
     eloop_run();
   else

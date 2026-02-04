@@ -104,6 +104,7 @@ struct cevf_run_arg_s {
   struct cevf_consumer_t2_s *cm_t2_arr;
   cevf_asz_t cm_t2_num;
   uint8_t cm_thr_cnt;
+  size_t ctrlmqsz;
 };
 
 #define CEVF_INI_PRIO_MAX 100
@@ -120,7 +121,7 @@ cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
-int cevf_init(void);
+int cevf_init(size_t evqsz);
 int cevf_run(int argc, char *argv[], struct cevf_run_arg_s arg);
 cevf_mq_t cevf_qmsg_new_mq(size_t sz);
 int cevf_qmsg_enq(cevf_mq_t mt, void *item);

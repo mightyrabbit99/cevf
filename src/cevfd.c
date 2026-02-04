@@ -11,10 +11,6 @@
 #include "cvector.h"
 #include "cvector_utils.h"
 
-#ifndef CEVF_CM_THR_CNT
-#define CEVF_CM_THR_CNT 2
-#endif  // CEVF_CM_THR_CNT
-
 #ifndef CEVF_DEFAULT_MOD_PATH
 #define CEVF_DEFAULT_MOD_PATH "/usr/lib/cevfms"
 #endif  // CEVF_DEFAULT_MOD_PATH
@@ -54,16 +50,21 @@ static int _load_mod_modarr(const char *mpath, void *ctx) {
     *it = NULL;
     cvector_push_back(modarr->mods, a);
   }
+  return 0;
 }
 #endif  // CEVF_STATIC_LIB
 
-static inline void _for_each_item_in_strarr(const char *strarr, const char *sep, int (*f)(const char *, void *), void *ctx) {
+static inline int _for_each_item_in_strarr(const char *strarr, const char *sep, int (*f)(const char *, void *), void *ctx) {
+  int ret = 0;
   char *p = strdup(strarr);
+  if (p == NULL) return -1;
   char *p2 = p, *token;
   while ((token = strsep(&p2, sep)) != NULL) {
-    f(token, ctx);
+    ret = f(token, ctx);
+    if (ret) break;
   }
   free(p);
+  return ret;
 }
 
 static void _process_terminate(int sig) { cevf_terminate(); }
@@ -71,12 +72,29 @@ static void _process_terminate(int sig) { cevf_terminate(); }
 int main(int argc, char *argv[]) {
   char *env_str;
   env_str = getenv("CEVF_CM_THR_CNT");
-  uint8_t cm_thr_cnt = CEVF_CM_THR_CNT;
+  uint8_t cm_thr_cnt = 0;
   if (env_str) {
     cm_thr_cnt = (uint8_t)atoi(env_str);
     if (cm_thr_cnt == 0) {
-      lge("Error parsing cm_thr_cnt\n");
-      cm_thr_cnt = CEVF_CM_THR_CNT;
+      lge("Error parsing CEVF_CM_THR_CNT\n");
+    }
+  }
+
+  size_t data_mq_sz = 0;
+  env_str = getenv("CEVF_DATA_MQ_SZ");
+  if (env_str) {
+    data_mq_sz = (size_t)atoi(env_str);
+    if (data_mq_sz == 0) {
+      lge("Error parsing CEVF_DATA_MQ_SZ\n");
+    }
+  }
+
+  size_t ctrl_mq_sz = 0;
+  env_str = getenv("CEVF_CTRL_MQ_SZ");
+  if (env_str) {
+    ctrl_mq_sz = (size_t)atoi(env_str);
+    if (ctrl_mq_sz == 0) {
+      lge("Error parsing CEVF_CTRL_MQ_SZ\n");
     }
   }
 #ifndef CEVF_STATIC_LIB
@@ -92,9 +110,9 @@ int main(int argc, char *argv[]) {
 #endif  // CEVF_STATIC_LIB
 
   cevf_register_signal_terminate(_process_terminate, NULL);
-  if (cevf_init()) return -1;
+  if (cevf_init(data_mq_sz)) return -1;
   cevf_add_procedures();
-  int res = cevf_start(argc, argv, cm_thr_cnt);
+  int res = cevf_start(argc, argv, cm_thr_cnt, ctrl_mq_sz);
   cevf_deinit();
 
 #ifndef CEVF_STATIC_LIB
