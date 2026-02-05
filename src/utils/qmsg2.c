@@ -62,7 +62,10 @@ int qmsg2_init(void) { return 0; }
 
 void qmsg2_deinit(void) { return; }
 
-struct qmsg2_s *qmsg2_new_mq(size_t sz) { return _new_qmsg2_s(sz); }
+struct qmsg2_s *qmsg2_new_mq(size_t sz) {
+  if (sz < 1) return NULL;
+  return _new_qmsg2_s(sz);
+}
 
 void qmsg2_del_mq(struct qmsg2_s *mq) {
   if (mq == NULL) return;
