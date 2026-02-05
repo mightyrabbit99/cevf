@@ -22,6 +22,9 @@
 #define CEVFE_TCPSRV_READBUF_SIZE 4096
 #endif  // CEVFE_TCPSRV_READBUF_SIZE
 
+static cevf_evtyp_t cevfe_tcpsrv_rcv_evno = CEVFE_TCPSRV_RCV_EVENT_NO;
+static cevf_evtyp_t cevfe_tcpsrv_close_evno = CEVFE_TCPSRV_CLOSE_EVENT_NO;
+
 static void fd_close_handle(int fd) {
   if (fd < 0) return;
   cevf_unregister_sock(fd, CEVF_SOCKEVENT_TYPE_READ);
@@ -53,7 +56,7 @@ static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) 
   } else {
     struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd, (cevf_tcpsrv_on_close_t)tcpsrv_close_conn, srvconn);
     if (rpy == NULL) return;
-    cevf_generic_enqueue((void *)rpy, CEVFE_TCPSRV_RCV_EVENT_NO);
+    cevf_generic_enqueue((void *)rpy, cevfe_tcpsrv_rcv_evno);
   }
   return;
 
@@ -68,8 +71,8 @@ static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum s
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)cookie;
   if (e == SRVREAD_EVENT_CLOSE) {
     if (
-      CEVFE_TCPSRV_CLOSE_EVENT_NO != CEVFE_TCPSRV_RCV_EVENT_NO
-      && CEVFE_TCPSRV_CLOSE_EVENT_NO != CEVF_RESERVED_EV_THEND
+      cevfe_tcpsrv_close_evno != cevfe_tcpsrv_rcv_evno
+      && cevfe_tcpsrv_close_evno != CEVF_RESERVED_EV_THEND
     ) {
       cevf_generic_enqueue((void *)(uintptr_t)srvconn->fd, CEVFE_TCPSRV_CLOSE_EVENT_NO);
     }
@@ -165,8 +168,13 @@ static int tcpsrv_init_1(int argc, char *argv[]) {
   if (cevf_is_static()) {
     parse_flags(argc, argv);
   } else {
-    char *port_str = getenv("CEVF_SRV_PORT");
-    if (port_str) port = atoi(port_str);
+    char *env_str;
+    env_str = getenv("CEVFE_TCPSRV_DEFAULT_PORT");
+    if (env_str) port = atoi(env_str);
+    env_str = getenv("CEVFE_TCPSRV_RCV_EVENT_NO");
+    if (env_str) cevfe_tcpsrv_rcv_evno = atoi(env_str);
+    env_str = getenv("CEVFE_TCPSRV_CLOSE_EVENT_NO");
+    if (env_str) cevfe_tcpsrv_close_evno = atoi(env_str);
   }
   port = port > 0 && port < 65536 ? port : CEVFE_TCPSRV_DEFAULT_PORT;
   srv = tcpsrv_register_tcp_server(port);

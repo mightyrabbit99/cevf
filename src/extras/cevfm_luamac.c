@@ -22,11 +22,11 @@
 #define CEVF_LUA_MODF_ENQF_NAME "cevf_enqueue"
 #define CEVF_LUA_MODF_EXECPCD_NAME "cevf_exec_procedure"
 
-#ifndef DEFAULT_CEVF_LUAMOD_PATH
-#define DEFAULT_CEVF_LUAMOD_PATH NULL
-#endif
+#ifndef CEVFE_LUAMAC_MOD_PATH
+#define CEVFE_LUAMAC_MOD_PATH NULL
+#endif  // CEVFE_LUAMAC_MOD_PATH
 
-static char *default_cevf_loamod_path = DEFAULT_CEVF_LUAMOD_PATH;
+static char *luamac_mod_path = CEVFE_LUAMAC_MOD_PATH;
 
 static lua_State *L = NULL;
 static pthread_mutex_t L_mutex;
@@ -293,7 +293,7 @@ static inline int _load_lua_mod_exec_init(lua_State *L, int argc, char *argv[]) 
   for (int i = 0; i < argc; i++) {
     lua_pushstring(L, argv[i]);
   }
-	lua_call(L, argc, 1);
+  lua_call(L, argc, 1);
   if (!lua_isnumber(L, -1)) {
     lua_pop(L, 1);
     return 0;
@@ -382,15 +382,18 @@ static int luamac_generic_evhandle(const uint8_t *data, size_t datalen, cevf_evt
 
 static int luamac_init(int argc, char *argv[]) {
   int ret;
-  char *env_str;
   if (cevf_is_static()) {
-    env_str = default_cevf_loamod_path;
+    // TODO
   } else {
-    env_str = getenv("CEVF_LUAMOD_PATH");
-    env_str = env_str ? env_str : default_cevf_loamod_path;
+    char *env_str;
+    env_str = getenv("CEVFE_LUAMAC_MOD_PATH");
+    if (env_str) luamac_mod_path = env_str;
   }
-  if (env_str == NULL) return 1;
-  
+  if (luamac_mod_path == NULL) {
+    lge("no luamac mod path specified\n");
+    return 1;
+  }
+
   L = luaL_newstate();
   pthread_mutex_init(&L_mutex, NULL);
   luaL_openlibs(L);
@@ -404,12 +407,12 @@ static int luamac_init(int argc, char *argv[]) {
   pthread_mutex_init(&m_pcdno_modname_mutex, NULL);
 
   struct _load_luamod_s lluamod = (struct _load_luamod_s){
-    .luamod_path = env_str,
-    .argc = argc,
-    .argv = argv,
+      .luamod_path = luamac_mod_path,
+      .argc = argc,
+      .argv = argv,
   };
 
-  ret = _foreach_filenode_sorted(env_str, load_lua_mod, &lluamod);
+  ret = _foreach_filenode_sorted(luamac_mod_path, load_lua_mod, &lluamod);
   return ret;
 }
 
