@@ -597,8 +597,11 @@ static inline void delete_cevf_tmouta_s(struct cevf_tmouta_s *s) {
   free(s);
 }
 
+// all timeouts in a heap, mainloop withdraw from this the closest timeout to execute
 static heap_t *tmout_hp = NULL;
 static pthread_mutex_t tmout_hp_mutex;
+
+// map a timeout handler to all realted timeouts in a heap
 static hashmap *m_tmok_tmouthp = NULL;
 static pthread_mutex_t m_tmok_tmouthp_mutex;
 
@@ -636,7 +639,13 @@ static inline int _timeout_add_to_hashmap(struct cevf_timeout_s *tmout) {
   return ret;
 }
 
+static size_t timeout_cnt = 0;
+static pthread_mutex_t timeout_cnt_mutex;
+
 static inline int _timeout_add(struct cevf_timeout_s *tmout) {
+  pthread_mutex_lock(&timeout_cnt_mutex);
+  timeout_cnt++;
+  pthread_mutex_unlock(&timeout_cnt_mutex);
   _timeout_add_to_mainheap(tmout);
   _timeout_add_to_hashmap(tmout);
   return 0;
@@ -773,6 +782,11 @@ static inline int _timeout_delete(struct cevf_timeout_s *tmout) {
     pthread_mutex_unlock(&m_tmok_tmouthp_mutex);
     return ret;
   }
+  pthread_mutex_unlock(&m_tmok_tmouthp_mutex);
+  pthread_mutex_lock(&timeout_cnt_mutex);
+  timeout_cnt -= heap_count(tmouthp2);
+  pthread_mutex_unlock(&timeout_cnt_mutex);
+  pthread_mutex_lock(&m_tmok_tmouthp_mutex);
   hashmap_remove(m_tmok_tmouthp, &tmok, sizeof(tmok));
   pthread_mutex_unlock(&m_tmok_tmouthp_mutex);
 
@@ -810,6 +824,10 @@ static inline int _timeout_deleteone(struct cevf_timeout_s *tmout, struct timesp
   if (heap_count(tmouthp2) == 0) {
     heap_free(tmouthp2);
   }
+
+  pthread_mutex_lock(&timeout_cnt_mutex);
+  timeout_cnt--;
+  pthread_mutex_unlock(&timeout_cnt_mutex);
   return ret;
 }
 
@@ -1096,7 +1114,16 @@ static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_
   }
 }
 
+static inline int cevf_is_idle(void) {
+  return cevf_register_sock_cnt == 0
+    && qmsg2_count(ctrl_mq) == 0
+    && qmsg2_count(data_mq) == 0
+    && timeout_cnt == 0
+    && ev_get_running_thr_cnt() == 0;
+}
+
 int cevf_init(size_t evqsz) {
+  pthread_mutex_init(&timeout_cnt_mutex, NULL);
   pthread_mutex_init(&log_mutex, NULL);
   qmsg2_init();
   if (_timeout_init()) return -1;
@@ -1122,6 +1149,7 @@ int cevf_run(int argc, char *argv[], struct cevf_run_arg_s a) {
   }
 
   if (ret = cevf_run_initialisers(argc, argv, a.ini_arr, a.ini_num)) goto fail2;
+  if (cevf_is_idle() && a.pd_num == 0) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));
   struct thstat_s *thstat = cevf_run_ev(a.pd_arr, a.pd_num, m_evtyp_handler, a.cm_thr_cnt > 0 ? a.cm_thr_cnt : CEVF_DEFAULT_CM_THR_CNT);
   if (cevf_register_sock_cnt > 0)
@@ -1151,4 +1179,5 @@ void cevf_deinit(void) {
   _timeout_deinit();
   qmsg2_deinit();
   pthread_mutex_destroy(&log_mutex);
+  pthread_mutex_destroy(&timeout_cnt_mutex);
 }

@@ -84,55 +84,63 @@ static hashmap *m_thtyp_handler = NULL;
 
 static void *ev_generic_thread_f(void *arg);
 
+static size_t total_th_cnt = 0;
+static pthread_mutex_t total_th_cnt_mutex;
 static hashmap *m_thfunc_cnt = NULL;
-static pthread_mutex_t th_cnt_mutex;
+static pthread_mutex_t m_thfunc_cnt_mutex;
 
 inline static int th_cnt_inc(cevf_thfunc_t thstart) {
+  pthread_mutex_lock(&total_th_cnt_mutex);
+  total_th_cnt++;
+  pthread_mutex_unlock(&total_th_cnt_mutex);
   uintptr_t ans = 0;
-  pthread_mutex_lock(&th_cnt_mutex);
+  pthread_mutex_lock(&m_thfunc_cnt_mutex);
   hashmap_get(m_thfunc_cnt, &thstart, sizeof(thstart), &ans);
-  pthread_mutex_unlock(&th_cnt_mutex);
+  pthread_mutex_unlock(&m_thfunc_cnt_mutex);
   ans++;
-  pthread_mutex_lock(&th_cnt_mutex);
+  pthread_mutex_lock(&m_thfunc_cnt_mutex);
   hashmap_set(m_thfunc_cnt, &thstart, sizeof(thstart), ans);
-  pthread_mutex_unlock(&th_cnt_mutex);
+  pthread_mutex_unlock(&m_thfunc_cnt_mutex);
   return 0;
 }
 
 inline static int th_cnt_dec(cevf_thfunc_t thstart) {
+  pthread_mutex_lock(&total_th_cnt_mutex);
+  total_th_cnt--;
+  pthread_mutex_unlock(&total_th_cnt_mutex);
   uintptr_t ans = 0;
-  pthread_mutex_lock(&th_cnt_mutex);
+  pthread_mutex_lock(&m_thfunc_cnt_mutex);
   if (!hashmap_get(m_thfunc_cnt, &thstart, sizeof(thstart), &ans)) {
-    pthread_mutex_unlock(&th_cnt_mutex);
+    pthread_mutex_unlock(&m_thfunc_cnt_mutex);
     return -1;
   }
-  pthread_mutex_unlock(&th_cnt_mutex);
+  pthread_mutex_unlock(&m_thfunc_cnt_mutex);
   if (ans == 0) return -1;
   ans--;
-  pthread_mutex_lock(&th_cnt_mutex);
+  pthread_mutex_lock(&m_thfunc_cnt_mutex);
   hashmap_set(m_thfunc_cnt, &thstart, sizeof(thstart), ans);
-  pthread_mutex_unlock(&th_cnt_mutex);
+  pthread_mutex_unlock(&m_thfunc_cnt_mutex);
   return 0;
 }
 
 inline static ssize_t th_cnt_get(cevf_thfunc_t thstart) {
   uintptr_t ans = 0;
-  pthread_mutex_lock(&th_cnt_mutex);
+  pthread_mutex_lock(&m_thfunc_cnt_mutex);
   if (!hashmap_get(m_thfunc_cnt, &thstart, sizeof(thstart), (uintptr_t *)&ans)) {
-    pthread_mutex_unlock(&th_cnt_mutex);
+    pthread_mutex_unlock(&m_thfunc_cnt_mutex);
     return -1;
   }
-  pthread_mutex_unlock(&th_cnt_mutex);
+  pthread_mutex_unlock(&m_thfunc_cnt_mutex);
   return (size_t)ans;
 }
 
 inline static void th_cnt_init(void) {
   m_thfunc_cnt = hashmap_create();
-  pthread_mutex_init(&th_cnt_mutex, NULL);
+  pthread_mutex_init(&m_thfunc_cnt_mutex, NULL);
 }
 
 inline static void th_cnt_deinit(void) {
-  pthread_mutex_destroy(&th_cnt_mutex);
+  pthread_mutex_destroy(&m_thfunc_cnt_mutex);
   hashmap_free(m_thfunc_cnt);
 }
 
@@ -257,6 +265,7 @@ static void *ev_generic_thread_f(void *arg) {
 }
 
 void ev_init(struct thpillar_s pillars[], size_t pillars_len) {
+  pthread_mutex_init(&total_th_cnt_mutex, NULL);
   th_ids = ids_new_idsys();
   th_cnt_init();
   m_thtyp_handler = compile_m_thtyp_handler(pillars, pillars_len);
@@ -268,6 +277,7 @@ void ev_deinit(void) {
   ids_foreach(th_ids, _destroy_th_2);
   ids_free_idsys(th_ids);
   th_cnt_deinit();
+  pthread_mutex_destroy(&total_th_cnt_mutex);
 }
 
 struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len) {
@@ -285,6 +295,14 @@ struct thstat_s *ev_run(struct thprop_s props[], uint8_t props_len) {
 
 int ev_is_running(cevf_thfunc_t thstart) {
   return th_cnt_get(thstart) > 0;
+}
+
+size_t ev_get_running_thr_cnt(void) {
+  size_t ans;
+  pthread_mutex_lock(&total_th_cnt_mutex);
+  ans = total_th_cnt;
+  pthread_mutex_unlock(&total_th_cnt_mutex);
+  return ans;
 }
 
 int ev_join(struct thstat_s *thstat) {
