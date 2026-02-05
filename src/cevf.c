@@ -28,7 +28,6 @@
  */
 
 #include "cevf.h"
-#include "cevf_main_pre.h"
 
 #include <assert.h>
 #include <errno.h>
@@ -40,6 +39,7 @@
 #include <sys/msg.h>
 
 #include "cevf_ev.h"
+#include "cevf_main_pre.h"
 #include "cvector.h"
 #include "cvector_utils.h"
 #include "eloop/eloop.h"
@@ -218,7 +218,7 @@ struct _handle_ev_farr_s {
       }                                           \
     }                                             \
     cvector_for_each_in(f__, farr) {              \
-      if (res = (*f__)(__VA_ARGS__) < 0) break;   \
+      res = (*f__)(__VA_ARGS__);                  \
     }                                             \
   } while (0)
 
@@ -244,6 +244,13 @@ static inline int _handle_event(hashmap *m_evtyp_handler, uint8_t *data, size_t 
   return res;
 }
 
+static void _data_msg_free(void *d) {
+  if (d == NULL) return;
+  struct _data_s *dd = (struct _data_s *)d;
+  if (dd->need_freed) free(dd->data);
+  delete_data_s(dd);
+}
+
 static CEVF_EV_THENDDECL(cevf_generic_consumer_loopf, arg1) {
   _cevf_generic_enq(NULL, CEVF_RESERVED_EV_THEND, _cevf_evq_enqueue);
 }
@@ -260,10 +267,8 @@ static CEVF_EV_THFDECL(cevf_generic_consumer_loopf, arg1) {
     if (evtyp == CEVF_RESERVED_EV_THEND) break;
     hashmap *m_evtyp_handler = (hashmap *)ev_getcontext(arg1);
     ret = _handle_event(m_evtyp_handler, data, datalen, evtyp, evtyp, need_freed);
-    if (ret) break;
     // global event handler
     ret = _handle_event(m_evtyp_handler, data, datalen, CEVF_RESERVED_EV_THEND, evtyp, need_freed);
-    if (ret) break;
     if (need_freed) free(data);
     need_freed = 0;
   }
@@ -1140,8 +1145,9 @@ void cevf_terminate(void) {
 
 void cevf_deinit(void) {
   eloop_destroy();
-  cevf_deinit_m_pcdno_handler();
+  qmsg2_flush(data_mq, _data_msg_free);
   qmsg2_del_mq(data_mq);
+  cevf_deinit_m_pcdno_handler();
   _timeout_deinit();
   qmsg2_deinit();
   pthread_mutex_destroy(&log_mutex);

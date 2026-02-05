@@ -12,6 +12,9 @@
 #ifndef CEVFE_TCPSRV_RCV_EVENT_NO
 #define CEVFE_TCPSRV_RCV_EVENT_NO 0
 #endif  // CEVFE_TCPSRV_RCV_EVENT_NO
+#ifndef CEVFE_TCPSRV_CLOSE_EVENT_NO
+#define CEVFE_TCPSRV_CLOSE_EVENT_NO CEVF_RESERVED_EV_THEND
+#endif  // CEVFE_TCPSRV_CLOSE_EVENT_NO
 #ifndef CEVFE_TCPSRV_DEFAULT_PORT
 #define CEVFE_TCPSRV_DEFAULT_PORT 8081
 #endif  // CEVFE_TCPSRV_DEFAULT_PORT
@@ -64,6 +67,12 @@ end:
 static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum srvread_event e) {
   struct srv_conn_ctx_s *srvconn = (struct srv_conn_ctx_s *)cookie;
   if (e == SRVREAD_EVENT_CLOSE) {
+    if (
+      CEVFE_TCPSRV_CLOSE_EVENT_NO != CEVFE_TCPSRV_RCV_EVENT_NO
+      && CEVFE_TCPSRV_CLOSE_EVENT_NO != CEVF_RESERVED_EV_THEND
+    ) {
+      cevf_generic_enqueue((void *)(uintptr_t)srvconn->fd, CEVFE_TCPSRV_CLOSE_EVENT_NO);
+    }
     tcpsrv_close_conn(srvconn);
   }
 }
@@ -122,9 +131,11 @@ static struct srv_ctx_s *tcpsrv_register_tcp_server(int port) {
   sin.sin_port = htons(port);
   if (bind(srv->fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) goto fail;
 
-  if (listen(srv->fd, 10 /* max backlog */) < 0
+  if (
+    listen(srv->fd, 10 /* max backlog */) < 0
     || fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0
-    || cevf_register_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_conn_handler, srv, NULL))
+    || cevf_register_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_conn_handler, srv, NULL)
+  )
     goto fail;
 
   return srv;
