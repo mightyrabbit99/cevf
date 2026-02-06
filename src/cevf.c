@@ -343,7 +343,8 @@ struct _procd_t1_s {
 };
 
 static inline void delete_procd_t1_s(struct _procd_t1_s *s) {
-  pthread_mutex_destroy(&s->mut);
+  if (s == NULL) return;
+  if (s->pcd.synchronized) pthread_mutex_destroy(&s->mut);
   free(s);
 }
 
@@ -351,7 +352,7 @@ static inline struct _procd_t1_s *new_procd_t1_s(struct cevf_procedure_t1_s pcd)
   struct _procd_t1_s *ans = (struct _procd_t1_s *)malloc(sizeof(struct _procd_t1_s));
   if (ans == NULL) return NULL;
   ans->pcd = pcd;
-  pthread_mutex_init(&ans->mut, NULL);
+  if (pcd.synchronized) pthread_mutex_init(&ans->mut, NULL);
   return ans;
 }
 
@@ -361,7 +362,8 @@ struct _procd_t2_s {
 };
 
 static inline void delete_procd_t2_s(struct _procd_t2_s *s) {
-  pthread_mutex_destroy(&s->mut);
+  if (s == NULL) return;
+  if (s->pcd.synchronized) pthread_mutex_destroy(&s->mut);
   free(s);
 }
 
@@ -369,7 +371,7 @@ static inline struct _procd_t2_s *new_procd_t2_s(struct cevf_procedure_t2_s pcd)
   struct _procd_t2_s *ans = (struct _procd_t2_s *)malloc(sizeof(struct _procd_t2_s));
   if (ans == NULL) return NULL;
   ans->pcd = pcd;
-  pthread_mutex_init(&ans->mut, NULL);
+  if (pcd.synchronized) pthread_mutex_init(&ans->mut, NULL);
   return ans;
 }
 
@@ -416,9 +418,9 @@ void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
 
   va_list argp;
   va_start(argp, argc);
-  pthread_mutex_lock(&s->mut);
+  if (s->pcd.synchronized) pthread_mutex_lock(&s->mut);
   void *ans = s->pcd.vfunc(argc, argp);
-  pthread_mutex_unlock(&s->mut);
+  if (s->pcd.synchronized) pthread_mutex_unlock(&s->mut);
   va_end(argp);
 
   return ans;
@@ -435,9 +437,9 @@ uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t
   }
   pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   
-  pthread_mutex_lock(&s->mut);
+  if (s->pcd.synchronized) pthread_mutex_lock(&s->mut);
   uint8_t *ans = s->pcd.func(input, input_len, output_len, s->pcd.ctx);
-  pthread_mutex_unlock(&s->mut);
+  if (s->pcd.synchronized) pthread_mutex_unlock(&s->mut);
 
   return ans;
 }

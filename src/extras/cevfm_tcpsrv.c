@@ -184,6 +184,7 @@ static int tcpsrv_init_1(int argc, char *argv[]) {
   }
   cevf_add_procedure_t1((struct cevf_procedure_t1_s){
       .pcdno = cevfe_tcpsrv_close_pcdno,
+      .synchronized = 0,
       .vfunc = tcpsrv_close_sock,
   });
   port = port > 0 && port < 65536 ? port : CEVFE_TCPSRV_DEFAULT_PORT;

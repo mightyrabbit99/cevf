@@ -34,9 +34,9 @@ extern cevf_asz_t _cevf_cm_t1_arr_sz;
 extern struct cevf_consumer_t2_s *_cevf_cm_t2_arr;
 extern cevf_asz_t _cevf_cm_t2_arr_sz;
 extern struct cevf_procedure_t1_s *_cevf_pcd_t1_arr;
-extern cevf_asz_t _cevf_pcd_t1_arr_sz ;
+extern cevf_asz_t _cevf_pcd_t1_arr_sz;
 extern struct cevf_procedure_t2_s *_cevf_pcd_t2_arr;
-extern cevf_asz_t _cevf_pcd_t2_arr_sz ;
+extern cevf_asz_t _cevf_pcd_t2_arr_sz;
 
 extern uint8_t _cevf_is_static_linked;
 extern uint8_t _cevf_cm_thr_cnt;
@@ -124,10 +124,11 @@ static void **_cevf_tmp_submod_p;
     }                                                                                                                \
   } while (0)
 #define cevf_mod_add_consumer_t2_global(_handler) cevf_mod_add_consumer_t2(CEVF_RESERVED_EV_THEND, _handler)
-#define cevf_mod_add_procedure_t1(_pcdno, _f)                                                                            \
+#define cevf_mod_add_procedure_t1(_pcdno, _sync, _f)                                                                     \
   do {                                                                                                                   \
     struct cevf_procedure_t1_s item__ = (struct cevf_procedure_t1_s){                                                    \
         .pcdno = _pcdno,                                                                                                 \
+        .synchronized = _sync,                                                                                           \
         .vfunc = _f,                                                                                                     \
     };                                                                                                                   \
     __cevf_add_list_item(_cevf_pcd_t1_arr, _cevf_pcd_t1_arr_sz, _cevf_tmp_pcd_t1_p, struct cevf_procedure_t1_s, item__); \
@@ -136,10 +137,11 @@ static void **_cevf_tmp_submod_p;
       exit(1);                                                                                                           \
     }                                                                                                                    \
   } while (0)
-#define cevf_mod_add_procedure_t2(_pcdno, _f, _ctx)                                                                      \
+#define cevf_mod_add_procedure_t2(_pcdno, _sync, _f, _ctx)                                                               \
   do {                                                                                                                   \
     struct cevf_procedure_t2_s item__ = (struct cevf_procedure_t2_s){                                                    \
         .pcdno = _pcdno,                                                                                                 \
+        .synchronized = _sync,                                                                                           \
         .func = _f,                                                                                                      \
         .ctx = _ctx,                                                                                                     \
     };                                                                                                                   \

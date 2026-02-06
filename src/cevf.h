@@ -82,11 +82,13 @@ struct cevf_consumer_t2_s {
 
 struct cevf_procedure_t1_s {
   cevf_pcdno_t pcdno;
+  uint8_t synchronized;
   void *(*vfunc)(int argc, va_list argp);
 };
 
 struct cevf_procedure_t2_s {
   cevf_pcdno_t pcdno;
+  uint8_t synchronized;
   uint8_t *(*func)(const uint8_t *input, size_t input_len, size_t *output_len, void *ctx);
   void *ctx;
 };
