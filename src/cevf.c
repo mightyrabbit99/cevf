@@ -337,14 +337,50 @@ static pthread_mutex_t m_pcdno_handler_t1_mutex;
 static hashmap *m_pcdno_handler_t2 = NULL;
 static pthread_mutex_t m_pcdno_handler_t2_mutex;
 
-static void _deinit_m_pcdno_handler_t1_it(void *key, size_t ksize, uintptr_t value, void *usr) {
-  struct cevf_procedure_t1_s *s = (struct cevf_procedure_t1_s *)value;
+struct _procd_t1_s {
+  struct cevf_procedure_t1_s pcd;
+  pthread_mutex_t mut;
+};
+
+static inline void delete_procd_t1_s(struct _procd_t1_s *s) {
+  pthread_mutex_destroy(&s->mut);
   free(s);
 }
 
-static void _deinit_m_pcdno_handler_t2_it(void *key, size_t ksize, uintptr_t value, void *usr) {
-  struct cevf_procedure_t2_s *s = (struct cevf_procedure_t2_s *)value;
+static inline struct _procd_t1_s *new_procd_t1_s(struct cevf_procedure_t1_s pcd) {
+  struct _procd_t1_s *ans = (struct _procd_t1_s *)malloc(sizeof(struct _procd_t1_s));
+  if (ans == NULL) return NULL;
+  ans->pcd = pcd;
+  pthread_mutex_init(&ans->mut, NULL);
+  return ans;
+}
+
+struct _procd_t2_s {
+  struct cevf_procedure_t2_s pcd;
+  pthread_mutex_t mut;
+};
+
+static inline void delete_procd_t2_s(struct _procd_t2_s *s) {
+  pthread_mutex_destroy(&s->mut);
   free(s);
+}
+
+static inline struct _procd_t2_s *new_procd_t2_s(struct cevf_procedure_t2_s pcd) {
+  struct _procd_t2_s *ans = (struct _procd_t2_s *)malloc(sizeof(struct _procd_t2_s));
+  if (ans == NULL) return NULL;
+  ans->pcd = pcd;
+  pthread_mutex_init(&ans->mut, NULL);
+  return ans;
+}
+
+static void _deinit_m_pcdno_handler_t1_it(void *key, size_t ksize, uintptr_t value, void *usr) {
+  struct _procd_t1_s *s = (struct _procd_t1_s *)value;
+  delete_procd_t1_s(s);
+}
+
+static void _deinit_m_pcdno_handler_t2_it(void *key, size_t ksize, uintptr_t value, void *usr) {
+  struct _procd_t2_s *s = (struct _procd_t2_s *)value;
+  delete_procd_t2_s(s);
 }
 
 static inline void _deinit_m_pcdno_handler(hashmap *m_pcdno_handler, hashmap_callback destroy_f) {
@@ -368,7 +404,7 @@ static inline void cevf_deinit_m_pcdno_handler(void) {
 }
 
 void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
-  struct cevf_procedure_t1_s *s;
+  struct _procd_t1_s *s;
   if (m_pcdno_handler_t1 == NULL) return NULL;
   pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)&s)) {
@@ -377,15 +413,19 @@ void *_cevf_exec_procedure_t1(cevf_pcdno_t pcdno, int argc, ...) {
     return NULL;
   }
   pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
+
   va_list argp;
   va_start(argp, argc);
-  void *ans = s->vfunc(argc, argp);
+  pthread_mutex_lock(&s->mut);
+  void *ans = s->pcd.vfunc(argc, argp);
+  pthread_mutex_unlock(&s->mut);
   va_end(argp);
+
   return ans;
 }
 
 uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t input_len, size_t *output_len) {
-  struct cevf_procedure_t2_s *s;
+  struct _procd_t2_s *s;
   if (m_pcdno_handler_t2 == NULL) return NULL;
   pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)&s)) {
@@ -394,58 +434,63 @@ uint8_t *cevf_exec_procedure_t2(cevf_pcdno_t pcdno, const uint8_t *input, size_t
     return NULL;
   }
   pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
-  return s->func(input, input_len, output_len, s->ctx);
+  
+  pthread_mutex_lock(&s->mut);
+  uint8_t *ans = s->pcd.func(input, input_len, output_len, s->pcd.ctx);
+  pthread_mutex_unlock(&s->mut);
+
+  return ans;
 }
 
 int cevf_add_procedure_t1(struct cevf_procedure_t1_s pcd) {
-  struct cevf_procedure_t1_s *pcd2 = NULL;
+  struct _procd_t1_s *p = NULL, *p2;
   if (m_pcdno_handler_t1 == NULL) return -1;
   pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
-  if (hashmap_get(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)&pcd2)) {
+  if (hashmap_get(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)&p)) {
     pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
-    free(pcd2);
   } else {
     pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   }
 
-  pcd2 = (struct cevf_procedure_t1_s *)malloc(sizeof(struct cevf_procedure_t1_s));
-  if (pcd2 == NULL) return -1;
-  *pcd2 = pcd;
+  p2 = new_procd_t1_s(pcd);
+  if (p2 == NULL) return -1;
+  if (p) delete_procd_t1_s(p);
+
   pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
-  hashmap_set(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)pcd2);
+  hashmap_set(m_pcdno_handler_t1, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)p2);
   pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
   return 0;
 }
 
 int cevf_add_procedure_t2(struct cevf_procedure_t2_s pcd) {
-  struct cevf_procedure_t2_s *pcd2 = NULL;
+  struct _procd_t2_s *p, *p2 = NULL;
   if (m_pcdno_handler_t2 == NULL) return -1;
   pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
-  if (hashmap_get(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)&pcd2)) {
+  if (hashmap_get(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t *)&p)) {
     pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
-    free(pcd2);
   } else {
     pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   }
 
-  pcd2 = (struct cevf_procedure_t2_s *)malloc(sizeof(struct cevf_procedure_t2_s));
-  if (pcd2 == NULL) return -1;
-  *pcd2 = pcd;
+  p2 = new_procd_t2_s(pcd);
+  if (p2 == NULL) return -1;
+  if (p) delete_procd_t2_s(p);
+
   pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
-  hashmap_set(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)pcd2);
+  hashmap_set(m_pcdno_handler_t2, &pcd.pcdno, sizeof(pcd.pcdno), (uintptr_t)p2);
   pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
   return 0;
 }
 
 int cevf_rm_procedure_t1(cevf_pcdno_t pcdno) {
-  struct cevf_procedure_t1_s *pcd2;
+  struct _procd_t1_s *p = NULL;
   pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
-  if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)pcd2)) {
+  if (!hashmap_get(m_pcdno_handler_t1, &pcdno, sizeof(pcdno), (uintptr_t *)&p)) {
     pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
     return 0;
   }
   pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
-  free(pcd2);
+  delete_procd_t1_s(p);
   pthread_mutex_lock(&m_pcdno_handler_t1_mutex);
   hashmap_remove(m_pcdno_handler_t1, &pcdno, sizeof(pcdno));
   pthread_mutex_unlock(&m_pcdno_handler_t1_mutex);
@@ -453,14 +498,14 @@ int cevf_rm_procedure_t1(cevf_pcdno_t pcdno) {
 }
 
 int cevf_rm_procedure_t2(cevf_pcdno_t pcdno) {
-  struct cevf_procedure_t2_s *pcd2;
+  struct _procd_t2_s *p = NULL;
   pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
-  if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)pcd2)) {
+  if (!hashmap_get(m_pcdno_handler_t2, &pcdno, sizeof(pcdno), (uintptr_t *)&p)) {
     pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
     return 0;
   }
   pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
-  free(pcd2);
+  delete_procd_t2_s(p);
   pthread_mutex_lock(&m_pcdno_handler_t2_mutex);
   hashmap_remove(m_pcdno_handler_t2, &pcdno, sizeof(pcdno));
   pthread_mutex_unlock(&m_pcdno_handler_t2_mutex);
