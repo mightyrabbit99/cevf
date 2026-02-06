@@ -119,6 +119,42 @@ target_include_directories(cevfm-tcpsrv-object
     ${CMAKE_CURRENT_SOURCE_DIR}/extras
 )
 
+add_library(cevfm-usock SHARED)
+set_target_properties(cevfm-usock PROPERTIES PREFIX "")
+set_target_properties(cevfm-usock PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-usock
+  PRIVATE
+    extras/cevfm_usock.c
+)
+target_link_libraries(cevfm-usock
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfm-usock
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
+install(TARGETS cevfm-usock
+  LIBRARY DESTINATION lib/cevfms/
+)
+
+add_library(cevfm-usock-object OBJECT)
+set_target_properties(cevfm-usock-object PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(cevfm-usock-object PROPERTIES PREFIX "")
+set_target_properties(cevfm-usock-object PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-usock-object
+  PRIVATE
+    extras/cevfm_usock.c
+)
+target_include_directories(cevfm-usock-object
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
+
 if(BUILD_CEVF_LUA)
 add_library(lua STATIC IMPORTED)
 set_target_properties(lua PROPERTIES IMPORTED_LOCATION "${LUA_LIBRARY}")
