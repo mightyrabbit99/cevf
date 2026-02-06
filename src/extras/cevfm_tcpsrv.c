@@ -128,26 +128,38 @@ static struct srv_ctx_s *tcpsrv_register_tcp_server(int port) {
   int on = 1;
   srv->fd = socket(AF_INET, SOCK_STREAM, 0);
   if (srv->fd < 0) goto fail;
-  if (setsockopt(srv->fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0)
-    lge("setsockopt\n");
-  if (fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0) goto fail;
+  if (setsockopt(srv->fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+    lge("setsockopt errno=%d (%s)\n", errno, strerror(errno));
+  }
   struct sockaddr_in sin;
   memset(&sin, 0, sizeof(sin));
   sin.sin_family = AF_INET;
   sin.sin_addr.s_addr = INADDR_ANY;
   sin.sin_port = htons(port);
-  if (bind(srv->fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) goto fail;
+  if (bind(srv->fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+    lge("bind errno=%d (%s)\n", errno, strerror(errno));
+    goto fail2;
+  }
 
-  if (
-    listen(srv->fd, 10 /* max backlog */) < 0
-    || fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0
-    || cevf_register_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_conn_handler, srv, NULL)
-  )
-    goto fail;
+  if (listen(srv->fd, 10 /* max backlog */) < 0) {
+    lge("listen errno=%d (%s)\n", errno, strerror(errno));
+    goto fail2;
+  }
+  
+  if (fcntl(srv->fd, F_SETFL, O_NONBLOCK) < 0) {
+    lge("fnctl errno=%d (%s)\n", errno, strerror(errno));
+    goto fail2;
+  }
+  
+  if (cevf_register_sock(srv->fd, CEVF_SOCKEVENT_TYPE_READ, tcpsrv_server_conn_handler, srv, NULL)) {
+    lge("fcevf_register_sock error\n");
+    goto fail2;
+  }
 
   return srv;
-fail:
+fail2:
   close(srv->fd);
+fail:
   delete_srv_ctx_s(srv);
   return NULL;
 }
