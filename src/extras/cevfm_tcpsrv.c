@@ -1,10 +1,10 @@
 #include <cevf_mod.h>
 #include <errno.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
-#include "srvctx.h"
 #include "cevf_extras.h"
+#include "srvctx.h"
 
 #define lge(...) fprintf(stderr, __VA_ARGS__)
 #define lg(...) (NULL)
@@ -15,6 +15,9 @@
 #ifndef CEVFE_TCPSRV_CLOSE_EVENT_NO
 #define CEVFE_TCPSRV_CLOSE_EVENT_NO CEVF_RESERVED_EV_THEND
 #endif  // CEVFE_TCPSRV_CLOSE_EVENT_NO
+#ifndef CEVFE_TCPSRV_CLOSE_PROCD_NO
+#define CEVFE_TCPSRV_CLOSE_PROCD_NO 0
+#endif  // CEVFE_TCPSRV_CLOSE_PROCD_NO
 #ifndef CEVFE_TCPSRV_DEFAULT_PORT
 #define CEVFE_TCPSRV_DEFAULT_PORT 8081
 #endif  // CEVFE_TCPSRV_DEFAULT_PORT
@@ -24,6 +27,7 @@
 
 static cevf_evtyp_t cevfe_tcpsrv_rcv_evno = CEVFE_TCPSRV_RCV_EVENT_NO;
 static cevf_evtyp_t cevfe_tcpsrv_close_evno = CEVFE_TCPSRV_CLOSE_EVENT_NO;
+static cevf_pcdno_t cevfe_tcpsrv_close_pcdno = CEVFE_TCPSRV_CLOSE_PROCD_NO;
 
 static void fd_close_handle(int fd) {
   if (fd < 0) return;
@@ -54,7 +58,7 @@ static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) 
   } else if (nread == 0) {
     goto end;
   } else {
-    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd, (cevf_tcpsrv_on_close_t)tcpsrv_close_conn, srvconn);
+    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd);
     if (rpy == NULL) return;
     cevf_generic_enqueue((void *)rpy, cevfe_tcpsrv_rcv_evno);
   }
@@ -74,7 +78,7 @@ static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum s
       cevfe_tcpsrv_close_evno != cevfe_tcpsrv_rcv_evno
       && cevfe_tcpsrv_close_evno != CEVF_RESERVED_EV_THEND
     ) {
-      cevf_generic_enqueue((void *)(uintptr_t)srvconn->fd, CEVFE_TCPSRV_CLOSE_EVENT_NO);
+      cevf_generic_enqueue((void *)(uintptr_t)srvconn->fd, cevfe_tcpsrv_close_evno);
     }
     tcpsrv_close_conn(srvconn);
   }
@@ -118,7 +122,7 @@ static void tcpsrv_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) 
 }
 
 static struct srv_ctx_s *tcpsrv_register_tcp_server(int port) {
-  struct srv_ctx_s *srv = new_srv_ctx_s();
+  struct srv_ctx_s *srv = new_srv_ctx_s(NULL);
   if (srv == NULL) return NULL;
 
   int on = 1;
@@ -175,7 +179,13 @@ static int tcpsrv_init_1(int argc, char *argv[]) {
     if (env_str) cevfe_tcpsrv_rcv_evno = atoi(env_str);
     env_str = getenv("CEVFE_TCPSRV_CLOSE_EVENT_NO");
     if (env_str) cevfe_tcpsrv_close_evno = atoi(env_str);
+    env_str = getenv("CEVFE_TCPSRV_CLOSE_PROCD_NO");
+    if (env_str) cevfe_tcpsrv_close_pcdno = atoi(env_str);
   }
+  cevf_add_procedure_t1((struct cevf_procedure_t1_s){
+      .pcdno = cevfe_tcpsrv_close_pcdno,
+      .vfunc = tcpsrv_close_sock,
+  });
   port = port > 0 && port < 65536 ? port : CEVFE_TCPSRV_DEFAULT_PORT;
   srv = tcpsrv_register_tcp_server(port);
   if (srv == NULL) return -1;
@@ -188,7 +198,6 @@ static void tcpsrv_deinit_1(void) {
 
 static void mod_tcpsrv_init(void) {
   cevf_mod_add_initialiser(0, tcpsrv_init_1, tcpsrv_deinit_1);
-  // cevf_mod_add_procedure_t1(0, tcpsrv_close_sock);
 }
 
 cevf_mod_init(mod_tcpsrv_init)
