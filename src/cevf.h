@@ -46,6 +46,7 @@ typedef void (*cevf_signal_handler)(int sig);
 typedef uint16_t cevf_evtyp_t;
 typedef uint16_t cevf_asz_t;
 typedef uint16_t cevf_pcdno_t;
+typedef uint16_t cevf_initprio_t;
 typedef void *cevf_mq_t;
 typedef uint8_t cevf_producer_id_t;
 #define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t) - 1)
@@ -54,6 +55,7 @@ typedef int (*cevf_consumer_handler_t1_t)(void *data, cevf_evtyp_t evtyp);
 typedef int (*cevf_consumer_handler_t2_t)(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp);
 
 struct cevf_initialiser_s {
+  cevf_initprio_t prio;
   cevf_initfunc_t init_f;
   cevf_deinitfunc_t deinit_f;
 };

@@ -1146,30 +1146,33 @@ static struct thstat_s *cevf_run_ev(struct cevf_producer_s *pd_arr, cevf_asz_t p
   return ev_run(props, props_len);
 }
 
-static uint32_t i_ini, j_ini;
+static int _initialiser_sort_f(const void *a, const void *b) {
+  const struct cevf_initialiser_s *b1 = (const struct cevf_initialiser_s *)a;
+  const struct cevf_initialiser_s *b2 = (const struct cevf_initialiser_s *)b;
+  return b1->prio - b2->prio;
+}
 
-static int cevf_run_initialisers(int argc, char *argv[], struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
+static cevf_asz_t i_ini = 0;
+
+static inline int cevf_run_initialisers(int argc, char *argv[], struct cevf_initialiser_s *ini_arr, cevf_asz_t ini_num) {
   int res = 0;
-  for (uint32_t i = 0; i < CEVF_INI_PRIO_MAX; i_ini = i++) {
-    if (ini_num[i] == 0) continue;
-    if (ini_arr[i] == NULL) continue;
-    for (uint32_t j = 0; j < ini_num[i]; j_ini = j++) {
-      if (ini_arr[i][j].init_f == NULL) continue;
-      if (res = ini_arr[i][j].init_f(argc, argv)) return res;
-    }
+  for (cevf_asz_t i = 0; i < ini_num; i_ini = ++i) {
+    struct cevf_initialiser_s ini = ini_arr[i];
+    if (ini.init_f == NULL) continue;
+    if (res = ini.init_f(argc, argv)) break;
   }
   return res;
 }
 
-static void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr[CEVF_INI_PRIO_MAX], cevf_asz_t ini_num[CEVF_INI_PRIO_MAX]) {
-  for (uint32_t i = 0; i <= i_ini; i++) {
-    if (ini_num[i_ini - i] == 0) continue;
-    if (ini_arr[i_ini - i] == NULL) continue;
-    for (uint32_t j = 0; j < ini_num[i_ini - i]; j++) {
-      if (i == 0 && j > j_ini) break;
-      if (ini_arr[i_ini - i][j].deinit_f) ini_arr[i_ini - i][j].deinit_f();
-    }
+static inline void cevf_run_deinitialisers(struct cevf_initialiser_s *ini_arr, cevf_asz_t ini_num) {
+  for (cevf_asz_t i = 0; i < ini_num; i++) {
+    cevf_asz_t i2 = ini_num - i - 1;
+    if (i2 > i_ini) continue;
+    struct cevf_initialiser_s ini = ini_arr[i2];
+    if (ini.deinit_f == NULL) continue;
+    ini.deinit_f();
   }
+  i_ini = 0;
 }
 
 static inline int cevf_is_idle(void) {
@@ -1206,6 +1209,7 @@ int cevf_run(int argc, char *argv[], struct cevf_run_arg_s a) {
     goto fail;
   }
 
+  qsort(a.ini_arr, a.ini_num, sizeof(a.ini_arr[0]), _initialiser_sort_f);
   if (ret = cevf_run_initialisers(argc, argv, a.ini_arr, a.ini_num)) goto fail2;
   if (cevf_is_idle() && a.pd_num == 0) goto fail2;
   ev_init(cevf_pillars, sizeof(cevf_pillars) / sizeof(struct thpillar_s));

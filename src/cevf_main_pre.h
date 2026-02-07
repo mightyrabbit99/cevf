@@ -2,8 +2,8 @@
 #define CEVF_MAIN_PRE_H
 
 struct cevf_run_arg_s {
-  struct cevf_initialiser_s **ini_arr;
-  cevf_asz_t *ini_num;
+  struct cevf_initialiser_s *ini_arr;
+  cevf_asz_t ini_num;
   struct cevf_producer_s *pd_arr;
   cevf_asz_t pd_num;
   struct cevf_consumer_t1_s *cm_t1_arr;

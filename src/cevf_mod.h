@@ -25,8 +25,8 @@
 #define CEVF_THENDDECL(fname) void CEVF_THENDNAME(fname)(void *CEVF_THF_ARGNAME)
 #define CEVF_THENDNAME(fname) CEVF_CONCAT(fname, terminate)
 
-extern struct cevf_initialiser_s *_cevf_ini_arr[CEVF_INI_PRIO_MAX];
-extern cevf_asz_t _cevf_ini_arr_sz[CEVF_INI_PRIO_MAX];
+extern struct cevf_initialiser_s *_cevf_ini_arr;
+extern cevf_asz_t _cevf_ini_arr_sz;
 extern struct cevf_producer_s *_cevf_pd_arr;
 extern cevf_asz_t _cevf_pd_arr_sz;
 extern struct cevf_consumer_t1_s *_cevf_cm_t1_arr;
@@ -70,19 +70,20 @@ static void **_cevf_tmp_submod_p;
       break;                                                             \
     }                                                                    \
     (arr) = (p);                                                         \
-    (arr)[arr_sz++] = (item_typ)(item);                                  \
+    (arr)[(arr_sz)++] = (item_typ)(item);                                \
   } while (0)
-#define cevf_mod_add_initialiser(prio, _init_f, _deinit_f)                                                                 \
-  do {                                                                                                                     \
-    struct cevf_initialiser_s item__ = (struct cevf_initialiser_s){                                                        \
-        .init_f = _init_f,                                                                                                 \
-        .deinit_f = _deinit_f,                                                                                             \
-    };                                                                                                                     \
-    __cevf_add_list_item(_cevf_ini_arr[prio], _cevf_ini_arr_sz[prio], _cevf_tmp_ini_p, struct cevf_initialiser_s, item__); \
-    if (_cevf_ret == -1) {                                                                                                 \
-      fprintf(stderr, "cevf initialisation error\n");                                                                      \
-      exit(1);                                                                                                             \
-    }                                                                                                                      \
+#define cevf_mod_add_initialiser(_prio, _init_f, _deinit_f)                                                    \
+  do {                                                                                                         \
+    struct cevf_initialiser_s item__ = (struct cevf_initialiser_s){                                            \
+        .prio = _prio,                                                                                         \
+        .init_f = _init_f,                                                                                     \
+        .deinit_f = _deinit_f,                                                                                 \
+    };                                                                                                         \
+    __cevf_add_list_item(_cevf_ini_arr, _cevf_ini_arr_sz, _cevf_tmp_ini_p, struct cevf_initialiser_s, item__); \
+    if (_cevf_ret == -1) {                                                                                     \
+      fprintf(stderr, "cevf initialisation error\n");                                                          \
+      exit(1);                                                                                                 \
+    }                                                                                                          \
   } while (0)
 #define cevf_mod_add_producer(_thname, _stack_size)                                                      \
   do {                                                                                                   \
