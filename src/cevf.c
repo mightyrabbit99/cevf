@@ -87,6 +87,7 @@ void cevf_log_set(cevf_log_level_t level, FILE *stream) {
 
 ///////////////////////////////
 
+static uint8_t data_mq_closed = 0;
 static struct qmsg2_s *data_mq = NULL;
 
 struct _data_s {
@@ -150,11 +151,13 @@ static inline cevf_qmsg2_res_t _cevf_generic_enq(void *data, cevf_evtyp_t evtyp,
 
 cevf_qmsg2_res_t cevf_generic_enqueue(void *data, cevf_evtyp_t evtyp) {
   if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  if (data_mq_closed) return cevf_qmsg2_res_error;
   return _cevf_generic_enq(data, evtyp, _cevf_evq_enqueue);
 }
 
 cevf_qmsg2_res_t cevf_generic_enqueue_soft(void *data, cevf_evtyp_t evtyp) {
   if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  if (data_mq_closed) return cevf_qmsg2_res_error;
   return _cevf_generic_enq(data, evtyp, _cevf_evq_enqueue_soft);
 }
 
@@ -177,11 +180,13 @@ fail:
 
 cevf_qmsg2_res_t cevf_copy_enqueue(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
   if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  if (data_mq_closed) return cevf_qmsg2_res_error;
   return _cevf_copy_enq(data, datalen, evtyp, _cevf_evq_enqueue);
 }
 
 cevf_qmsg2_res_t cevf_copy_enqueue_soft(const uint8_t *data, size_t datalen, cevf_evtyp_t evtyp) {
   if (evtyp == CEVF_RESERVED_EV_THEND) return cevf_qmsg2_res_error;
+  if (data_mq_closed) return cevf_qmsg2_res_error;
   return _cevf_copy_enq(data, datalen, evtyp, _cevf_evq_enqueue_soft);
 }
 
@@ -1214,6 +1219,7 @@ fail:
 }
 
 void cevf_terminate(void) {
+  data_mq_closed = 1;
   eloop_terminate();
   qmsg2_enq(ctrl_mq, NULL);
 }
