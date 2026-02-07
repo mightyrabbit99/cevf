@@ -657,6 +657,8 @@ static pthread_mutex_t tmout_hp_mutex;
 static hashmap *m_tmok_tmouthp = NULL;
 static pthread_mutex_t m_tmok_tmouthp_mutex;
 
+static uint8_t timeout_closed = 0;
+
 struct tmok_s {
   cevf_timeout_handler_t handler;
   void *ctx;
@@ -1004,6 +1006,8 @@ int cevf_register_timeout(time_t tv_sec, long tv_nsec, cevf_timeout_handler_t ha
   struct timespec tm;
   struct cevf_timeout_s *tmout = NULL;
   struct cevf_tmouta_s *tmouta = NULL;
+  if (timeout_closed) return -1;
+  if (handler == NULL) return 0;
   if (clock_gettime(CLOCK_REALTIME, &tm) == -1) {
     perror("clock_gettime");
     return -1;
@@ -1031,6 +1035,7 @@ int cevf_cancel_timeout(cevf_timeout_handler_t handler, void *ctx) {
   int ret = 0;
   struct cevf_timeout_s *tmout = NULL;
   struct cevf_tmouta_s *tmouta = NULL;
+  if (timeout_closed) return -1;
   if (handler == NULL) return 0;
   tmout = new_cevf_timeout_s(handler, (struct timespec){0}, ctx);
   if (tmout == NULL) goto fail;
@@ -1054,6 +1059,7 @@ int cevf_cancel_timeout_one(cevf_timeout_handler_t handler, void *ctx, struct ti
   int ret = 0;
   struct cevf_timeout_s *tmout = NULL;
   struct cevf_tmouta_s *tmouta = NULL;
+  if (timeout_closed) return -1;
   if (handler == NULL) return 0;
   tmout = new_cevf_timeout_s(handler, (struct timespec){0}, ctx);
   if (tmout == NULL) goto fail;
@@ -1220,6 +1226,7 @@ fail:
 
 void cevf_terminate(void) {
   data_mq_closed = 1;
+  timeout_closed = 1;
   eloop_terminate();
   qmsg2_enq(ctrl_mq, NULL);
 }
