@@ -151,7 +151,7 @@ static void usock_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) {
 static struct srv_ctx_s *usock_register_server(const char *sock) {
   char *sock2 = strdup(sock);
   if (sock2 == NULL) return NULL;
-  struct srv_ctx_s *srv = new_srv_ctx_s(sock2);
+  struct srv_ctx_s *srv = new_srv_ctx_s(sock2, AF_UNIX);
   if (srv == NULL) goto fail;
 
   if (access(sock, F_OK) == 0 && unlink(sock)) {

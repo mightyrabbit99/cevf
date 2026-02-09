@@ -122,7 +122,7 @@ static void tcpsrv_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) 
 }
 
 static struct srv_ctx_s *tcpsrv_register_tcp_server(int port) {
-  struct srv_ctx_s *srv = new_srv_ctx_s(NULL);
+  struct srv_ctx_s *srv = new_srv_ctx_s(NULL, AF_INET);
   if (srv == NULL) return NULL;
 
   int on = 1;

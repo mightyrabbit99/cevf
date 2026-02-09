@@ -53,6 +53,7 @@ struct srv_ctx_s {
   int request_count;
   struct srv_conn_ctx_s *conns;
   void *d1;
+  unsigned short af;
 };
 
 struct srv_conn_ctx_s {
@@ -149,10 +150,11 @@ inline static void delete_srv_ctx_s(struct srv_ctx_s *srv) {
   free(srv);
 }
 
-inline static struct srv_ctx_s *new_srv_ctx_s(void *d1) {
+inline static struct srv_ctx_s *new_srv_ctx_s(void *d1, unsigned short af) {
   struct srv_ctx_s *srv = (void *)zalloc(sizeof(struct srv_ctx_s));
   if (srv == NULL) return NULL;
   srv->d1 = d1;
+  srv->af = af;
   return srv;
 }
 
