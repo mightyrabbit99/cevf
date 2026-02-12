@@ -112,7 +112,7 @@ static void usock_server_read_cb(struct srvread_s *handle, void *cookie, enum sr
 }
 
 static struct srv_conn_ctx_s *usock_server_sndrcv_init(struct srv_ctx_s *srv, int fd) {
-  struct srv_conn_ctx_s *srvconn = new_src_conn_ctx_s(srv, fd);
+  struct srv_conn_ctx_s *srvconn = new_srv_conn_ctx_s(srv, fd, AF_UNIX, NULL, 0);
   if (srvconn == NULL) goto fail;
   struct srvread_s *hread = new_srvread_s(fd, usock_server_read_cb, srvconn);
   if (hread == NULL) goto fail;

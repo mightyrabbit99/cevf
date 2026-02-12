@@ -8,9 +8,13 @@ struct cevf_tcpsrv_rcv_s {
   int sd;
   char *rcvdata;
   size_t rcvdata_len;
+  struct {
+    unsigned short af;
+    const void *addr; // struct sockaddr_in or struct sockaddr_in6 depending on af
+  } src;
 };
 
-static inline struct cevf_tcpsrv_rcv_s *new_cevf_tcpsrv_rcv_s(char *readbuf, size_t len, int sd) {
+static inline struct cevf_tcpsrv_rcv_s *new_cevf_tcpsrv_rcv_s(char *readbuf, size_t len, int sd, unsigned short af, void *addr) {
   struct cevf_tcpsrv_rcv_s *ans = (struct cevf_tcpsrv_rcv_s *)malloc(sizeof(struct cevf_tcpsrv_rcv_s));
   if (ans == NULL) return NULL;
   ans->rcvdata_len = len;
@@ -18,6 +22,8 @@ static inline struct cevf_tcpsrv_rcv_s *new_cevf_tcpsrv_rcv_s(char *readbuf, siz
   if (ans->rcvdata == NULL) goto fail;
   memcpy(ans->rcvdata, readbuf, ans->rcvdata_len);
   ans->sd = sd;
+  ans->src.af = af;
+  ans->src.addr = addr;
   return ans;
 fail:
   free(ans);

@@ -58,7 +58,7 @@ static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) 
   } else if (nread == 0) {
     goto end;
   } else {
-    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd);
+    struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd, srvconn->src.af, srvconn->src.addr);
     if (rpy == NULL) return;
     cevf_generic_enqueue((void *)rpy, cevfe_tcpsrv_rcv_evno);
   }
@@ -84,8 +84,8 @@ static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum s
   }
 }
 
-static struct srv_conn_ctx_s *tcpsrv_server_sndrcv_init(struct srv_ctx_s *srv, int fd) {
-  struct srv_conn_ctx_s *srvconn = new_src_conn_ctx_s(srv, fd);
+static struct srv_conn_ctx_s *tcpsrv_server_sndrcv_init(struct srv_ctx_s *srv, int fd, void *ip_addr) {
+  struct srv_conn_ctx_s *srvconn = new_srv_conn_ctx_s(srv, fd, AF_INET, ip_addr, sizeof(struct sockaddr_in));
   if (srvconn == NULL) goto fail;
   struct srvread_s *hread = new_srvread_s(fd, tcpsrv_server_read_cb, srvconn);
   if (hread == NULL) goto fail;
@@ -117,7 +117,7 @@ static void tcpsrv_server_conn_handler(int sd, void *eloop_ctx, void *sock_ctx) 
   }
   lg("TCPSRV: connection from %s:%d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
-  if (tcpsrv_server_sndrcv_init(srv, conn) == NULL)
+  if (tcpsrv_server_sndrcv_init(srv, conn, (void *)&addr) == NULL)
     close(conn);
 }
 

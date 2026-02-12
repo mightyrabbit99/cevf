@@ -12,6 +12,9 @@
 #include <arpa/inet.h>
 #include <fcntl.h>
 
+#define INET_ADDRLEN 4
+#define INET6_ADDRLEN 16
+
 inline static void *zalloc(size_t sz) {
   return calloc(1, sz);
 }
@@ -61,21 +64,35 @@ struct srv_conn_ctx_s {
   int fd;
   struct srvread_s *hread;
   struct srv_conn_ctx_s *next;
+  struct {
+    unsigned short af;
+    void *addr;
+    size_t addr_len;
+  } src;
 };
 
-inline static struct srv_conn_ctx_s *new_src_conn_ctx_s(struct srv_ctx_s *srv, int fd) {
+inline static struct srv_conn_ctx_s *new_srv_conn_ctx_s(struct srv_ctx_s *srv, int fd, unsigned short af, void *addr, size_t addr_sz) {
   struct srv_conn_ctx_s *ans = (struct srv_conn_ctx_s *)zalloc(sizeof(struct srv_conn_ctx_s));
   if (ans == NULL) goto fail;
   ans->srv = srv;
   ans->fd = fd;
+  ans->src.af = af;
+  if (addr_sz > 0) {
+    ans->src.addr = malloc(addr_sz);
+    if (ans->src.addr == NULL) goto fail;
+    ans->src.addr_len = addr_sz;
+    memcpy(ans->src.addr, addr, addr_sz);
+  }
   return ans;
 fail:
+  free(ans->src.addr);
   free(ans);
   return NULL;
 }
 
 inline static void destroy_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
   if (srvconn == NULL) return;
+  free(srvconn->src.addr);
 }
 
 inline static void destruct_srv_conn_ctx_s(struct srv_conn_ctx_s *srvconn) {
