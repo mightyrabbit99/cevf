@@ -9,18 +9,6 @@
 #define lge(...) fprintf(stderr, __VA_ARGS__)
 #define lg(...) (NULL)
 
-#ifndef CEVFE_TCPSRV_RCV_EVENT_NO
-#define CEVFE_TCPSRV_RCV_EVENT_NO 0
-#endif  // CEVFE_TCPSRV_RCV_EVENT_NO
-#ifndef CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO
-#define CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO (CEVF_RESERVED_EV_THEND - 1)
-#endif  // CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO
-#ifndef CEVFE_TCPSRV_CLOSE_EVENT_NO
-#define CEVFE_TCPSRV_CLOSE_EVENT_NO CEVF_RESERVED_EV_THEND
-#endif  // CEVFE_TCPSRV_CLOSE_EVENT_NO
-#ifndef CEVFE_TCPSRV_CLOSE_PROCD_NO
-#define CEVFE_TCPSRV_CLOSE_PROCD_NO 0
-#endif  // CEVFE_TCPSRV_CLOSE_PROCD_NO
 #ifndef CEVFE_TCPSRV_DEFAULT_PORT
 #define CEVFE_TCPSRV_DEFAULT_PORT 8081
 #endif  // CEVFE_TCPSRV_DEFAULT_PORT
@@ -51,7 +39,10 @@ static int tcpsrv_resume_handle(void *data, cevf_evtyp_t evtyp) {
     return 0;
   }
 
+  delete_cevf_tcpsrv_write_resume_s(rpy);
+  return 0;
 end:
+  if (rpy->on_error) rpy->on_error(rpy->ctx);
   delete_cevf_tcpsrv_write_resume_s(rpy);
   return ret;
 }

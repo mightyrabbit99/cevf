@@ -7,7 +7,6 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define CEVFE_TCPSRV_RCV_EVENT_NO 0
 #define WRITEBUF_SZ 15
 
 static int a1_reply_handle(void *data, cevf_evtyp_t evtyp) {
@@ -22,16 +21,11 @@ static int a1_reply_handle(void *data, cevf_evtyp_t evtyp) {
   else
     memcpy(writebuf, "fuck you\n", writesz = 9);
 
-  result = write(rpy->sd, writebuf, writesz);
-  if (result < 0) {
-    if (errno == EAGAIN) goto end;
-    ret = -1;
-    goto end;
-  }
+  struct cevf_tcpsrv_write_resume_s *rsm = new_cevf_tcpsrv_write_resume_s(rpy->sd, writebuf, writesz, NULL, NULL);
+  cevf_generic_enqueue((void *)rsm, CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO);
 
-end:
   delete_cevf_tcpsrv_rcv_s(rpy);
-  return ret;
+  return 0;
 }
 
 static void mod_reply1_init(void) {
