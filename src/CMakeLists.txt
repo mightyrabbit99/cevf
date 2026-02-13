@@ -189,6 +189,42 @@ target_include_directories(cevfm-usock-object
     ${CMAKE_CURRENT_SOURCE_DIR}/utils
 )
 
+add_library(cevfm-assdisass SHARED)
+set_target_properties(cevfm-assdisass PROPERTIES PREFIX "")
+set_target_properties(cevfm-assdisass PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-assdisass
+  PRIVATE
+    extras/cevfm_assdisass.c
+    utils/map.c
+)
+target_link_libraries(cevfm-assdisass
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfm-assdisass
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
+install(TARGETS cevfm-assdisass
+  LIBRARY DESTINATION lib/cevfms/
+)
+
+add_library(cevfm-assdisass-object OBJECT)
+set_target_properties(cevfm-assdisass-object PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(cevfm-assdisass-object PROPERTIES PREFIX "")
+set_target_properties(cevfm-assdisass-object PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-assdisass-object
+  PRIVATE
+    extras/cevfm_assdisass.c
+)
+target_include_directories(cevfm-assdisass-object
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+)
+
 if(BUILD_CEVF_LUA)
 add_library(lua STATIC IMPORTED)
 set_target_properties(lua PROPERTIES IMPORTED_LOCATION "${LUA_LIBRARY}")

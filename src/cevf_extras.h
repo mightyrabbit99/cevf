@@ -2,6 +2,7 @@
 #define CEVF_EXTRAS_H
 
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
 
 #ifndef CEVF_RESERVED_EV_THEND
@@ -12,6 +13,8 @@
 #define CEVFE_USOCK_RCV_EVENT_NO (CEVF_RESERVED_EV_THEND - 3)
 #define CEVFE_USOCK_CLOSE_EVENT_NO (CEVF_RESERVED_EV_THEND - 4)
 #define CEVFE_RESUMEW_WRITE_EVENT_NO (CEVF_RESERVED_EV_THEND - 5)
+#define CEVFE_ASSDISASS_SEGMENT_IN_EVENT_NO (CEVF_RESERVED_EV_THEND - 6)
+#define CEVFE_ASSDISASS_BIGCHUNK_IN_EVENT_NO (CEVF_RESERVED_EV_THEND - 7)
 
 #ifndef CEVF_RESERVED_PCDNO_END
 #define CEVF_RESERVED_PCDNO_END ((cevf_pcdno_t) - 1)
@@ -129,5 +132,63 @@ fail:
   free(ans);
   return NULL;
 }
+
+struct cevf_assdisass_assdata_s {
+  void *data;
+  size_t len;
+  void *ctx;
+  void (*on_assembled)(const uint8_t *, size_t, void *);
+  void (*on_timeout)(void *);
+};
+
+static inline struct cevf_assdisass_assdata_s *new_cevf_assdisass_assdata_s(void *data, size_t len, void *ctx, void (*on_assembled)(const uint8_t *, size_t, void *), void (*on_timeout)(void *)) {
+  struct cevf_assdisass_assdata_s *ans = (struct cevf_assdisass_assdata_s *)malloc(sizeof(struct cevf_assdisass_assdata_s));
+  if (ans == NULL) return NULL;
+  ans->data = data;
+  ans->len = len;
+  ans->ctx = ctx;
+  ans->on_assembled = on_assembled;
+  ans->on_timeout = on_timeout;
+  return ans;
+}
+
+struct cevf_assdisass_disdata_s {
+  void *data;
+  size_t len;
+  void *ctx;
+  void (*fragment_handler)(const uint8_t *, size_t, void *);
+  void (*on_done)(void *);
+  uint8_t reserved[24];
+};
+
+static inline void destroy_cevf_assdisass_disdata_s(struct cevf_assdisass_disdata_s *s) {
+  if (s == NULL) return;
+  free(s->data);
+}
+
+static inline void delete_cevf_assdisass_disdata_s(struct cevf_assdisass_disdata_s *s) {
+  if (s == NULL) return;
+  destroy_cevf_assdisass_disdata_s(s);
+  free(s);
+}
+
+static inline struct cevf_assdisass_disdata_s *new_cevf_assdisass_disdata_s(const void *data, size_t len, void *ctx, void (*fragment_handler)(const uint8_t *, size_t, void *), void (*on_done)(void *)) {
+  struct cevf_assdisass_disdata_s *ans = (struct cevf_assdisass_disdata_s *)malloc(sizeof(struct cevf_assdisass_disdata_s));
+  if (ans == NULL) return NULL;
+  ans->data = malloc(len);
+  if (ans->data == NULL) goto fail;
+  memcpy(ans->data, data, len);
+  ans->len = len;
+  ans->ctx = ctx;
+  ans->fragment_handler = fragment_handler;
+  ans->on_done = on_done;
+  memset(ans->reserved, 0, sizeof(ans->reserved));
+  return ans;
+fail:
+  free(ans->data);
+  free(ans);
+  return NULL;
+}
+
 
 #endif  // CEVF_EXTRAS_H
