@@ -28,6 +28,7 @@ target_link_libraries(tcp1
   PUBLIC
     cevf-static
     cevfm-tcpsrv-object
+    cevfm-resumew-object
 )
 install(TARGETS tcp1
   DESTINATION bin

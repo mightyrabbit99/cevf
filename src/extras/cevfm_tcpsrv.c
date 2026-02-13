@@ -20,33 +20,6 @@ static cevf_evtyp_t cevfe_tcpsrv_rcv_evno = CEVFE_TCPSRV_RCV_EVENT_NO;
 static cevf_evtyp_t cevfe_tcpsrv_close_evno = CEVFE_TCPSRV_CLOSE_EVENT_NO;
 static cevf_pcdno_t cevfe_tcpsrv_close_pcdno = CEVFE_TCPSRV_CLOSE_PROCD_NO;
 
-static int tcpsrv_resume_handle(void *data, cevf_evtyp_t evtyp) {
-  int ret = 0;
-  ssize_t result;
-  struct cevf_tcpsrv_write_resume_s *rpy = (struct cevf_tcpsrv_write_resume_s *)data;
-
-  result = write(rpy->sd, rpy->p, rpy->len);
-  if (result < 0) {
-    if (errno == EAGAIN) goto end;
-    ret = -1;
-    goto end;
-  }
-
-  if (result < rpy->len) {
-    rpy->len -= result;
-    rpy->p += result;
-    cevf_generic_enqueue((void *)rpy, CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO);
-    return 0;
-  }
-
-  delete_cevf_tcpsrv_write_resume_s(rpy);
-  return 0;
-end:
-  if (rpy->on_error) rpy->on_error(rpy->ctx);
-  delete_cevf_tcpsrv_write_resume_s(rpy);
-  return ret;
-}
-
 static void fd_close_handle(int fd) {
   if (fd < 0) return;
   cevf_unregister_sock(fd, CEVF_SOCKEVENT_TYPE_READ);
@@ -229,7 +202,6 @@ static void tcpsrv_deinit_1(void) {
 
 static void mod_tcpsrv_init(void) {
   cevf_mod_add_initialiser(0, tcpsrv_init_1, tcpsrv_deinit_1);
-  cevf_mod_add_consumer_t1(CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO, tcpsrv_resume_handle);
 }
 
 cevf_mod_init(mod_tcpsrv_init)

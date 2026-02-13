@@ -8,10 +8,10 @@
 #define CEVF_RESERVED_EV_THEND ((cevf_evtyp_t) - 1)
 #endif  // CEVF_RESERVED_EV_THEND
 #define CEVFE_TCPSRV_RCV_EVENT_NO (CEVF_RESERVED_EV_THEND - 1)
-#define CEVFE_TCPSRV_WRITE_RESUME_EVENT_NO (CEVF_RESERVED_EV_THEND - 2)
-#define CEVFE_TCPSRV_CLOSE_EVENT_NO (CEVF_RESERVED_EV_THEND - 3)
-#define CEVFE_USOCK_RCV_EVENT_NO (CEVF_RESERVED_EV_THEND - 4)
-#define CEVFE_USOCK_CLOSE_EVENT_NO (CEVF_RESERVED_EV_THEND - 5)
+#define CEVFE_TCPSRV_CLOSE_EVENT_NO (CEVF_RESERVED_EV_THEND - 2)
+#define CEVFE_USOCK_RCV_EVENT_NO (CEVF_RESERVED_EV_THEND - 3)
+#define CEVFE_USOCK_CLOSE_EVENT_NO (CEVF_RESERVED_EV_THEND - 4)
+#define CEVFE_RESUMEW_WRITE_EVENT_NO (CEVF_RESERVED_EV_THEND - 5)
 
 #ifndef CEVF_RESERVED_PCDNO_END
 #define CEVF_RESERVED_PCDNO_END ((cevf_pcdno_t) - 1)
@@ -58,28 +58,29 @@ fail:
   return NULL;
 }
 
-struct cevf_tcpsrv_write_resume_s {
+struct cevf_resumew_write_s {
   int sd;
   void *data;
   size_t len;
   char *p;
   void (*on_error)(void *);
+  void (*on_end)(void *);
   void *ctx;
 };
 
-static inline void destroy_cevf_tcpsrv_write_resume_s(struct cevf_tcpsrv_write_resume_s *s) {
+static inline void destroy_cevf_resumew_write_s(struct cevf_resumew_write_s *s) {
   if (s == NULL) return;
   free(s->data);
 }
 
-static inline void delete_cevf_tcpsrv_write_resume_s(struct cevf_tcpsrv_write_resume_s *s) {
+static inline void delete_cevf_resumew_write_s(struct cevf_resumew_write_s *s) {
   if (s == NULL) return;
-  destroy_cevf_tcpsrv_write_resume_s(s);
+  destroy_cevf_resumew_write_s(s);
   free(s);
 }
 
-static inline struct cevf_tcpsrv_write_resume_s *new_cevf_tcpsrv_write_resume_s(int sd, const void *data, size_t len, void (*on_error)(void *), void *ctx) {
-  struct cevf_tcpsrv_write_resume_s *ans = (struct cevf_tcpsrv_write_resume_s *)malloc(sizeof(struct cevf_tcpsrv_write_resume_s));
+static inline struct cevf_resumew_write_s *new_cevf_resumew_write_s(int sd, const void *data, size_t len, void *ctx, void (*on_error)(void *), void (*on_end)(void *)) {
+  struct cevf_resumew_write_s *ans = (struct cevf_resumew_write_s *)malloc(sizeof(struct cevf_resumew_write_s));
   if (ans == NULL) return NULL;
   ans->sd = sd;
   ans->data = malloc(len);
@@ -88,6 +89,7 @@ static inline struct cevf_tcpsrv_write_resume_s *new_cevf_tcpsrv_write_resume_s(
   ans->len = len;
   ans->p = ans->data;
   ans->on_error = on_error;
+  ans->on_end = on_end;
   ans->ctx = ctx;
   return ans;
 fail:

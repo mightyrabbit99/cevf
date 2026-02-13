@@ -119,6 +119,40 @@ target_include_directories(cevfm-tcpsrv-object
     ${CMAKE_CURRENT_SOURCE_DIR}/extras
 )
 
+add_library(cevfm-resumew SHARED)
+set_target_properties(cevfm-resumew PROPERTIES PREFIX "")
+set_target_properties(cevfm-resumew PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-resumew
+  PRIVATE
+    extras/cevfm_resumew.c
+)
+target_link_libraries(cevfm-resumew
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfm-resumew
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+)
+install(TARGETS cevfm-resumew
+  LIBRARY DESTINATION lib/cevfms/
+)
+
+add_library(cevfm-resumew-object OBJECT)
+set_target_properties(cevfm-resumew-object PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(cevfm-resumew-object PROPERTIES PREFIX "")
+set_target_properties(cevfm-resumew-object PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-resumew-object
+  PRIVATE
+    extras/cevfm_resumew.c
+)
+target_include_directories(cevfm-resumew-object
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+)
+
 add_library(cevfm-usock SHARED)
 set_target_properties(cevfm-usock PROPERTIES PREFIX "")
 set_target_properties(cevfm-usock PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
