@@ -13,8 +13,7 @@ static int resumew_resume_handle(void *data, cevf_evtyp_t evtyp) {
   if (result < 0) {
     if (errno == EAGAIN) goto end;
     ret = -1;
-    if (rpy->on_error) rpy->on_error(rpy->ctx);
-    goto end;
+    goto bad;
   }
 
   if (result < rpy->len) {
@@ -24,10 +23,12 @@ static int resumew_resume_handle(void *data, cevf_evtyp_t evtyp) {
     return 0;
   }
 
-  delete_cevf_resumew_write_s(rpy);
-  return 0;
 end:
   if (rpy->on_end) rpy->on_end(rpy->ctx);
+  delete_cevf_resumew_write_s(rpy);
+  return ret;
+bad:
+  if (rpy->on_error) rpy->on_error(rpy->p, rpy->len, rpy->ctx);
   delete_cevf_resumew_write_s(rpy);
   return ret;
 }

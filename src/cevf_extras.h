@@ -63,7 +63,7 @@ struct cevf_resumew_write_s {
   void *data;
   size_t len;
   char *p;
-  void (*on_error)(void *);
+  void (*on_error)(const void *, size_t, void *);
   void (*on_end)(void *);
   void *ctx;
 };
@@ -79,7 +79,7 @@ static inline void delete_cevf_resumew_write_s(struct cevf_resumew_write_s *s) {
   free(s);
 }
 
-static inline struct cevf_resumew_write_s *new_cevf_resumew_write_s(int sd, const void *data, size_t len, void *ctx, void (*on_error)(void *), void (*on_end)(void *)) {
+static inline struct cevf_resumew_write_s *new_cevf_resumew_write_s(int sd, const void *data, size_t len, void *ctx, void (*on_error)(const void *, size_t, void *), void (*on_end)(void *)) {
   struct cevf_resumew_write_s *ans = (struct cevf_resumew_write_s *)malloc(sizeof(struct cevf_resumew_write_s));
   if (ans == NULL) return NULL;
   ans->sd = sd;
