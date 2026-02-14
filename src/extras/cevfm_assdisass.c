@@ -40,6 +40,11 @@ static int asmb_chunk_in_handle(void *data, cevf_evtyp_t evtyp) {
 }
 
 static int asmb_init(int argc, char *argv[]) {
+  if (!cevf_is_static()) {
+    char *env_str;
+    env_str = getenv("CEVFE_ASSDISASS_MAX_SEGMENT_SIZE");
+    if (env_str) cevfe_asmb_max_sgmt_size = atoi(env_str);
+  }
   asmb_assembler_ctx = assdis_new_assembler_ctx();
   if (asmb_assembler_ctx == NULL) return 1;
   asmb_disassembler_ctx = assdis_new_disassembler_ctx();
