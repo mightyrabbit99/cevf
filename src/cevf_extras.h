@@ -23,6 +23,14 @@
 #define CEVFE_USOCK_CLOSE_PROCD_NO (CEVF_RESERVED_PCDNO_END - 1)
 #define CEVFE_USOCK_CLOSESRV_PROCD_NO (CEVF_RESERVED_PCDNO_END - 2)
 #define CEVFE_USOCK_OPENSRV_PROCD_NO (CEVF_RESERVED_PCDNO_END - 3)
+#define CEVFE_SOCKSPLICER_SPLICE_PROCD_NO (CEVF_RESERVED_PCDNO_END - 4)
+#define CEVFE_SOCKSPLICER_CLOSE_PROCD_NO (CEVF_RESERVED_PCDNO_END - 5)
+
+struct cevf_socksplicer_spliceres_s {
+  int pip_to;
+  int pip_fro;
+  uint8_t reserved[24];
+};
 
 struct cevf_tcpsrv_rcv_s {
   int sd;

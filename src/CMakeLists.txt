@@ -225,6 +225,41 @@ target_include_directories(cevfm-assdisass-object
     ${CMAKE_CURRENT_SOURCE_DIR}/extras
 )
 
+add_library(cevfm-socksplicer SHARED)
+set_target_properties(cevfm-socksplicer PROPERTIES PREFIX "")
+set_target_properties(cevfm-socksplicer PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-socksplicer
+  PRIVATE
+    extras/cevfm_socksplicer.c
+)
+target_link_libraries(cevfm-socksplicer
+  PUBLIC
+    cevf
+)
+target_include_directories(cevfm-socksplicer
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils
+)
+install(TARGETS cevfm-socksplicer
+  LIBRARY DESTINATION lib/cevfms/
+)
+
+add_library(cevfm-socksplicer-object OBJECT)
+set_target_properties(cevfm-socksplicer-object PROPERTIES EXCLUDE_FROM_ALL TRUE)
+set_target_properties(cevfm-socksplicer-object PROPERTIES PREFIX "")
+set_target_properties(cevfm-socksplicer-object PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+target_sources(cevfm-socksplicer-object
+  PRIVATE
+    extras/cevfm_socksplicer.c
+)
+target_include_directories(cevfm-socksplicer-object
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/extras
+)
+
 if(BUILD_CEVF_LUA)
 add_library(lua STATIC IMPORTED)
 set_target_properties(lua PROPERTIES IMPORTED_LOCATION "${LUA_LIBRARY}")
