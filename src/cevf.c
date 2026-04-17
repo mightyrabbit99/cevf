@@ -50,6 +50,11 @@
 
 /////////////////////////////////////
 #define lge(...) fprintf(stderr, __VA_ARGS__)
+#define lg(...)                                                 \
+  do {                                                          \
+    fprintf(stderr, "[debug] %s %d: ", __FUNCTION__, __LINE__); \
+    fprintf(stderr, __VA_ARGS__);                               \
+  } while (0)
 
 #define CEVF_DEFAULT_CTRL_MQ_SZ 10
 #define CEVF_DEFAULT_DATA_MQ_SZ 10
