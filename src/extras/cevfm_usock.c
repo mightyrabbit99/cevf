@@ -72,7 +72,7 @@ static void usock_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) {
   } else {
     struct cevf_usock_rcv_s *rpy = new_cevf_usock_rcv_s(readbuf, nread, sd, sock);
     if (rpy == NULL) return;
-    cevf_generic_enqueue((void *)rpy, cevfe_usock_rcv_evno);
+    cevf_generic_enqueue_soft((void *)rpy, cevfe_usock_rcv_evno);
   }
   return;
 
@@ -90,7 +90,7 @@ static void usock_server_read_cb(struct srvread_s *handle, void *cookie, enum sr
       cevfe_usock_close_evno != cevfe_usock_rcv_evno
       && cevfe_usock_close_evno != CEVF_RESERVED_EV_THEND
     ) {
-      cevf_generic_enqueue((void *)(uintptr_t)srvconn->fd, cevfe_usock_close_evno);
+      cevf_generic_enqueue_soft((void *)(uintptr_t)srvconn->fd, cevfe_usock_close_evno);
     }
     usock_close_conn(srvconn);
   }

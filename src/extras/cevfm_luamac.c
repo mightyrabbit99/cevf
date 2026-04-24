@@ -94,7 +94,7 @@ static int _enqueue_f(lua_State *L) {
   }
   const uint8_t *str = lua_tolstring(L, -2, &len);
   cevf_evtyp_t evtyp = lua_tonumber(L, -1);
-  res = cevf_copy_enqueue(str, len, evtyp);
+  res = cevf_copy_enqueue_soft(str, len, evtyp);
   lua_pushnumber(L, res);
   return 1;
 }

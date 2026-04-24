@@ -32,7 +32,7 @@ static int asmb_chunk_in_handle(void *data, cevf_evtyp_t evtyp) {
   int ret;
   ret = assdis_disassemble(asmb_disassembler_ctx, (struct assdis_data_s *)data, cevfe_asmb_max_sgmt_size);
   if (ret) {
-    cevf_generic_enqueue(data, evtyp);
+    cevf_generic_enqueue_soft(data, evtyp);
   } else {
     delete_cevf_assdisass_disdata_s((struct cevf_assdisass_disdata_s *)data);
   }

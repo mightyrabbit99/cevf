@@ -22,7 +22,7 @@ static int a1_reply_handle(void *data, cevf_evtyp_t evtyp) {
     memcpy(writebuf, "fuck you\n", writesz = 9);
 
   struct cevf_resumew_write_s *rsm = new_cevf_resumew_write_s(rpy->sd, writebuf, writesz, NULL, NULL, NULL);
-  cevf_generic_enqueue((void *)rsm, CEVFE_RESUMEW_WRITE_EVENT_NO);
+  cevf_generic_enqueue_soft((void *)rsm, CEVFE_RESUMEW_WRITE_EVENT_NO);
 
   delete_cevf_tcpsrv_rcv_s(rpy);
   return 0;

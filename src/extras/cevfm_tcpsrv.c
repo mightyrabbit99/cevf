@@ -51,7 +51,7 @@ static void tcpsrv_server_read_handler(int sd, void *eloop_ctx, void *sock_ctx) 
   } else {
     struct cevf_tcpsrv_rcv_s *rpy = new_cevf_tcpsrv_rcv_s(readbuf, nread, sd, srvconn->src.af, srvconn->src.addr);
     if (rpy == NULL) return;
-    cevf_generic_enqueue((void *)rpy, cevfe_tcpsrv_rcv_evno);
+    cevf_generic_enqueue_soft((void *)rpy, cevfe_tcpsrv_rcv_evno);
   }
   return;
 
@@ -69,7 +69,7 @@ static void tcpsrv_server_read_cb(struct srvread_s *handle, void *cookie, enum s
       cevfe_tcpsrv_close_evno != cevfe_tcpsrv_rcv_evno
       && cevfe_tcpsrv_close_evno != CEVF_RESERVED_EV_THEND
     ) {
-      cevf_generic_enqueue((void *)(uintptr_t)srvconn->fd, cevfe_tcpsrv_close_evno);
+      cevf_generic_enqueue_soft((void *)(uintptr_t)srvconn->fd, cevfe_tcpsrv_close_evno);
     }
     tcpsrv_close_conn(srvconn);
   }

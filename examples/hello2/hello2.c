@@ -52,14 +52,14 @@ static int a1_pcap_handle(void *data, cevf_evtyp_t evtyp) {
   char *d = (char *)data;
   console_log("%s: %p %ld\n", __FUNCTION__, d, strlen(d));
   console_log("PCAP content=%s\n", d);
-  cevf_generic_enqueue(data, evt_a1_destruct);
+  cevf_generic_enqueue_soft(data, evt_a1_destruct);
 
   char *data2;
   size_t data2len = 30;
 
   data2 = (char *)malloc(data2len);
   sprintf(data2, "fuck you %p", d);
-  cevf_generic_enqueue(data2, evt_a1_process1);
+  cevf_generic_enqueue_soft(data2, evt_a1_process1);
   return 0;
 }
 
@@ -68,7 +68,7 @@ static int a1_process1_handle(void *data, cevf_evtyp_t evtyp) {
   console_log("%s: %p %ld\n", __FUNCTION__, d, strlen(d));
   console_log("PROCESS1 content=%s\n", d);
 
-  cevf_generic_enqueue(data, evt_a1_destruct);
+  cevf_generic_enqueue_soft(data, evt_a1_destruct);
   return 0;
 }
 
@@ -86,7 +86,7 @@ static void _produce_ev_1(void *ctx) {
   data = (uint8_t *)malloc(datalen);
   sprintf(data, "hello world %d", cnt1++);
   console_log("%s: Generated event: %p %ld\n", __FUNCTION__, data, datalen);
-  cevf_generic_enqueue(data, evt_a1_pcap);
+  cevf_generic_enqueue_soft(data, evt_a1_pcap);
   cevf_register_timeout(1, 0, _produce_ev_1, NULL);
 }
 

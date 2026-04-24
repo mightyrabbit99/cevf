@@ -19,7 +19,7 @@ static int resumew_resume_handle(void *data, cevf_evtyp_t evtyp) {
   if (result < rpy->len) {
     rpy->len -= result;
     rpy->p += result;
-    cevf_generic_enqueue((void *)rpy, CEVFE_RESUMEW_WRITE_EVENT_NO);
+    cevf_generic_enqueue_soft((void *)rpy, CEVFE_RESUMEW_WRITE_EVENT_NO);
     return 0;
   }
 

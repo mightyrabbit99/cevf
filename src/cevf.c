@@ -535,6 +535,11 @@ int cevf_qmsg_enq(cevf_mq_t mt, void *item) {
   return conv_qmsgres_res2(qmsg2_enq((struct qmsg2_s *)mt, item));
 }
 
+int cevf_qmsg_enq_soft(cevf_mq_t mt, void *item) {
+  if (mt == NULL) return cevf_qmsg2_res_error;
+  return conv_qmsgres_res2(qmsg2_enq_soft((struct qmsg2_s *)mt, item));
+}
+
 cevf_qmsg2_res_t cevf_qmsg_deq(cevf_mq_t mt, void **buf) {
   return conv_qmsgres_res2(qmsg2_deq((struct qmsg2_s *)mt, buf));
 }
