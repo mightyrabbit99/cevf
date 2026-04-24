@@ -191,6 +191,7 @@ static int tcpsrv_init_1(int argc, char *argv[]) {
       .vfunc = tcpsrv_close_sock,
   });
   port = port > 0 && port < 65536 ? port : CEVFE_TCPSRV_DEFAULT_PORT;
+  lg("port: %d\n", port);
   srv = tcpsrv_register_tcp_server(port);
   if (srv == NULL) return -1;
   return 0;
